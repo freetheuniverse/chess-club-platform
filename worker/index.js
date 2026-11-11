@@ -1,7 +1,7 @@
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 const error = (message, status = 400) => json({ error: message }, status);
 const uid = () => crypto.randomUUID();
-const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Belize", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const today = () => { const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/Belize",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day; };
 const hex = bytes => [...new Uint8Array(bytes)].map(x => x.toString(16).padStart(2, "0")).join("");
 async function digest(value) { return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))); }
 async function passwordHash(password, salt) {
@@ -173,6 +173,7 @@ export default {
             const byes=new Set(history.filter(g=>g.result==="bye").map(g=>g.white_id));
             const rn=(await db.prepare("SELECT coalesce(max(round_number),0)+1 n FROM rounds WHERE tournament_id=?").bind(tid).first()).n,id=uid();
             const pairs=pairPlayers(ranked,seen,byes);
+            await recordAttendance(db,club,t,ranked.map(p=>p.id));
             await db.batch([
               db.prepare("INSERT INTO rounds(id,tournament_id,round_number) VALUES(?,?,?)").bind(id,tid,rn),
               ...pairs.map(p=>db.prepare("INSERT INTO games(id,round_id,white_id,black_id,result) VALUES(?,?,?,?,?)").bind(uid(),id,p.white_id,p.black_id,p.result)),
