@@ -43,6 +43,7 @@ function create({element,item,interactive,onMove,onError}){
     orientation:initialOrientation,
     turnColor:game.turn()==="w"?"white":"black",
     coordinates:true,
+    coordinatesOnSquares:true,
     ranksPosition:"left",
     autoCastle:true,
     highlight:{lastMove:true,check:true},
