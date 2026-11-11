@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",loading:true};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",loading:true,viewRound:null,expandedGame:null};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -85,9 +85,97 @@ function puzzles(){
  '<div style="margin-top:16px"><a class="btn ghost" href="https://lichess.org/training" target="_blank" rel="noopener noreferrer">Practice on Lichess</a></div>'+
  '</div></section>';
 }
-function tournamentDetail(){const d=state.tdata,t=d.tournament,can=state.data.role==="moderator",completed=t.status==="completed";const unselected=state.data.members.filter(m=>!d.players.some(p=>p.id===m.id));return '<a class="back interactive" data-action="close-tournament">← Back to tournaments</a><div class="spread"><div><div class="eyebrow">Tournament workspace</div><h1>'+esc(t.title)+'</h1><span class="muted">'+date(t.event_date)+' · '+d.players.length+' participants · '+esc(t.status)+'</span></div>'+(can&&!completed?button("Finish tournament","complete-tournament","btn ghost"):"")+'</div><div class="content-grid"><div class="stack"><div class="panel"><div class="spread"><h2>Rounds & pairings</h2>'+(can&&!completed?button("+ Generate round","new-round","btn small"):"")+'</div>'+(d.rounds.length?d.rounds.map(r=>'<div><h3>Round '+r.round_number+'</h3><div class="tablewrap"><table><thead><tr><th>White</th><th>Black</th><th>Result</th></tr></thead><tbody>'+d.games.filter(g=>g.round_number===r.round_number).map(g=>'<tr><td>'+esc(g.white_name)+'</td><td>'+esc(g.black_name||"BYE")+'</td><td>'+(g.result==="bye"?"1 point · bye":can&&!completed?'<select class="field" style="padding:7px;width:auto" data-game="'+g.id+'"><option value="" '+(!g.result?"selected":"")+'>Not played</option>'+[["1-0","White wins"],["0-1","Black wins"],["1/2-1/2","Draw"]].map(([k,v])=>'<option value="'+k+'" '+(g.result===k?"selected":"")+'>'+v+'</option>').join("")+'</select>':esc(g.result||"Pending"))+'</td></tr>').join("")+'</tbody></table></div></div>').join(""):empty("No rounds yet. Add players and generate the first round."))+'</div><div class="panel"><h2>Standings</h2><table><thead><tr><th>#</th><th>Player</th><th>Points</th></tr></thead><tbody>'+d.standings.map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(p.name)+'</td><td class="score">'+p.points.toFixed(1)+'</td></tr>').join("")+'</tbody></table></div></div><div class="stack"><div class="panel"><h2>Participants</h2><p class="muted">'+d.players.length+' registered players</p>'+d.players.map(p=>'<div class="card-item">'+esc(p.name)+'</div>').join("")+(d.players.length?"":empty("No participants registered."))+'</div>'+(can&&t.status==="draft"?'<div class="panel"><h2>Add club members</h2><div id="playerchoices">'+(unselected.length?unselected.map(p=>'<label class="selectrow"><input type="checkbox" class="playerpick" value="'+p.id+'">'+esc(p.name)+'</label>').join(""):empty("All club members are enrolled."))+'</div><p>'+button("Add selected players","add-players")+'</p><div class="hint">Each added player receives one attendance record for this date if the tournament date is not in the future.</div></div>':"")+'</div></div>'}
-function modal(){if(!state.modal)return "";let mode=state.modal;let title=mode==="new-club"?"Create a chess club":mode==="join-club"?"Join a chess club":"New tournament";return '<div class="modalcover"><div class="modal"><div class="spread"><h2>'+title+'</h2>'+button("×","close-modal","close")+'</div><form id="modalform" class="form">'+(mode==="new-club"?'<label>Club name<input class="field" name="name" placeholder="e.g. SHJC Chess Club" minlength="3" required></label>':mode==="join-club"?'<label>Club join code<input class="field" name="code" placeholder="Enter your code" required></label>':'<label>Tournament name<input class="field" name="title" placeholder="November Club Tournament" minlength="3" required></label><label>Event date<input type="date" class="field" name="event_date" required></label>')+'<button class="btn" type="submit">'+(mode==="join-club"?"Join": "Create")+'</button></form></div></div>'}
-function auth(){return '<div class="auth"><div class="modal"><div class="brand" style="color:#173b28;margin-bottom:23px"><span class="mark">♞</span> Chess Club</div><div class="eyebrow">Your chess community</div><h1>Every move matters.</h1><p class="muted">One place for players, tournaments and attendance.</p><form id="authform" class="form"><label id="namefield">Your name<input name="name" class="field" placeholder="Full name" autocomplete="name"></label><label>Email address<input name="email" type="email" class="field" required autocomplete="email"></label><label>Password<input name="password" type="password" class="field" minlength="10" required autocomplete="current-password"></label><button type="submit" class="btn" id="authsubmit">Create account</button><div id="auth-error" class="notice" role="alert" hidden></div></form><p class="muted" style="text-align:center"><span id="authswitch" class="interactive">Already have an account? Sign in</span></p><p class="hint">Accounts are stored privately in your Cloudflare database.</p></div></div>'}
+function tournamentDetail(){
+ const d=state.tdata,t=d.tournament,can=state.data.role==="moderator",completed=t.status==="completed";
+ const roundCount=d.rounds.length;
+ const roundNumber=state.viewRound && state.viewRound>=1 && state.viewRound<=roundCount?state.viewRound:roundCount;
+ const visibleGames=d.games.filter(g=>g.round_number===roundNumber);
+ const unselected=state.data.members.filter(m=>!d.players.some(p=>p.id===m.id));
+ const counts=new Map(d.players.map(p=>[p.id,{wins:0,draws:0,losses:0}]));
+ for(const g of d.games){
+   if(!g.black_id||!g.result)continue;
+   const white=counts.get(g.white_id),black=counts.get(g.black_id);
+   if(g.result==="1-0"){if(white)white.wins++;if(black)black.losses++;}
+   if(g.result==="0-1"){if(black)black.wins++;if(white)white.losses++;}
+   if(g.result==="1/2-1/2"){if(black)black.draws++;if(white)white.draws++;}
+ }
+ function gameRow(g,index){
+   if(!g.black_id)return '<div class="bye-row"><span class="board-number">'+(index+1)+'</span><strong>'+esc(g.white_name)+'</strong><span class="pill">Bye · 1 point</span></div>';
+   const result=g.result==="1-0"?"White wins":g.result==="0-1"?"Black wins":g.result==="1/2-1/2"?"Draw":"";
+   const expanded=state.expandedGame===g.id;
+   let center;
+   if(result){
+     center='<span class="result-chip">'+result+'</span>'+(can&&!completed?'<button type="button" class="change-result" data-action="result-toggle:'+g.id+'">Change result</button>':'');
+   }else{
+     center=can&&!completed?'<button type="button" class="vs-toggle" aria-expanded="'+expanded+'" data-action="result-toggle:'+g.id+'">VS</button>':'<span class="muted">VS</span>';
+   }
+   const picker=can&&!completed&&expanded?'<div class="match-result">'+
+     button("White wins","result:"+g.id+":1-0","btn ghost small")+
+     button("Draw","result:"+g.id+":1/2-1/2","btn ghost small")+
+     button("Black wins","result:"+g.id+":0-1","btn ghost small")+
+     '</div>':'';
+   return '<div class="match"><div class="match-row"><span class="board-number">'+(index+1)+'</span>'+
+     '<span class="player-slot">'+esc(g.white_name)+'</span><div class="center-cell">'+center+'</div>'+
+     '<span class="player-slot">'+esc(g.black_name)+'</span></div>'+picker+'</div>';
+ }
+ const roundNav=roundCount>1?'<div class="round-nav no-print">'+
+   '<button type="button" class="btn ghost small" aria-label="Previous round" data-action="round:-1" '+(roundNumber<=1?'disabled':'')+'>‹</button>'+
+   '<button type="button" class="btn ghost small" aria-label="Next round" data-action="round:1" '+(roundNumber>=roundCount?'disabled':'')+'>›</button></div>':'';
+ const pairings=roundCount?'<div class="match-header"><span>Board</span><span>White</span><span class="center-cell">Result</span><span>Black</span></div>'+
+ visibleGames.map(gameRow).join(""):empty("Add at least two players, then select New pairings.");
+ const standings=d.standings.map((p,i)=>{
+   const c=counts.get(p.id)||{wins:0,draws:0,losses:0};
+   return '<tr><td class="num">'+(i+1)+'</td><td class="player-name">'+esc(p.name)+'</td><td class="num points">'+p.points.toFixed(1)+'</td>'+
+    '<td class="num">'+c.wins+'</td><td class="num">'+c.draws+'</td><td class="num">'+c.losses+'</td></tr>';
+ }).join("");
+ return '<a class="back interactive" data-action="close-tournament">← Tournaments</a>'+
+ '<div class="workspace-title"><div class="spread"><div><div class="eyebrow">Tournament</div><h1>'+esc(t.title)+'</h1>'+
+ '<p class="muted">'+date(t.event_date)+' · '+d.players.length+' players · '+esc(t.status)+'</p></div>'+
+ (can&&!completed&&roundCount?button("Finish tournament","complete-tournament","btn ghost small"):"")+
+ '</div></div><div class="tournament-workspace"><aside>'+
+ '<section class="panel"><div class="panel-heading"><h2>Player roster</h2><span class="muted">'+d.players.length+' players</span></div>'+
+ '<div class="roster-list">'+(d.players.length?d.players.map((p,i)=>'<div class="roster-line"><span class="row"><span class="roster-number">'+(i+1)+'</span><strong>'+esc(p.name)+'</strong></span></div>').join(""):empty("No players added."))+'</div>'+
+ (can&&t.status==="draft"?'<div class="roster-add"><div class="spread" style="margin-bottom:9px"><h3>Add club members</h3><span class="selection-actions">'+button("All","select-all","btn text")+button("Clear","select-none","btn text")+'</span></div>'+
+ '<div class="roster-box">'+(unselected.length?unselected.map(p=>'<label class="selectrow"><input type="checkbox" class="playerpick" value="'+p.id+'"><span>'+esc(p.name)+'</span></label>').join(""):empty("All members are playing."))+
+ '</div><div style="margin-top:11px">'+button("Add selected players","add-players","btn ghost small")+'</div></div>':'')+
+ '</section></aside><div class="workspace-main"><section class="panel"><div class="panel-heading"><div class="round-title-control">'+
+ '<h2>'+(roundCount?"Round "+roundNumber:"Pairings")+'</h2>'+roundNav+'</div>'+
+ '<div class="round-actions">'+(can&&!completed?button(roundCount?"New pairings":"Start round 1","new-round","btn small"):"")+'</div></div>'+
+ '<div>'+pairings+'</div></section>'+
+ '<section class="panel"><div class="panel-heading"><h2>Standings</h2><span class="muted">Win 1 · Draw 0.5 · Loss 0</span></div>'+
+ '<div class="tablewrap"><table aria-label="Standings"><thead><tr><th class="num">Rank</th><th>Player</th><th class="num">Points</th><th class="num">W</th><th class="num">D</th><th class="num">L</th></tr></thead>'+
+ '<tbody>'+standings+'</tbody></table></div></section></div></div>';
+}
+function modal(){
+ if(!state.modal)return "";
+ const mode=state.modal;
+ const title=mode==="new-club"?"Create club":mode==="join-club"?"Join club":"Start new tournament";
+ const fields=mode==="new-club"?'<label>Club name<input class="field" name="name" placeholder="Club name" minlength="3" required></label>':
+   mode==="join-club"?'<label>Club code<input class="field" name="code" placeholder="Join code" required></label>':
+   '<label>Tournament name<input class="field" name="title" placeholder="Tournament name" minlength="3" required></label>'+
+   '<label>Date<input type="date" class="field" name="event_date" required></label>'+
+   '<div><div class="spread" style="margin-bottom:8px"><h3>Participating members</h3><span class="selection-actions">'+
+   button("Select all","select-all-start","btn text")+button("Clear","select-none-start","btn text")+'</span></div>'+
+   '<div class="roster-box">'+(state.data?.members.length?state.data.members.map(p=>
+      '<label class="selectrow"><input type="checkbox" class="start-player" value="'+p.id+'"><span>'+esc(p.name)+'</span></label>').join(""):empty("Create or invite club members first."))+
+   '</div><p class="modal-hint" style="margin-top:7px">You can also add members before the first round.</p></div>';
+ return '<div class="modalcover"><section class="modal" role="dialog" aria-modal="true" aria-label="'+title+'">'+
+ '<div class="modal-heading"><h2>'+title+'</h2><button class="close" type="button" aria-label="Close" data-action="close-modal">×</button></div>'+
+ '<form id="modalform" class="form">'+fields+'<div class="form-actions">'+button("Cancel","close-modal","btn ghost")+
+ '<button type="submit" class="btn">'+(mode==="join-club"?"Join club":mode==="new-club"?"Create club":"Start tournament")+'</button></div></form></section></div>';
+}
+function auth(){
+ return '<div class="auth"><section class="modal"><div class="identity"><span class="mark" aria-hidden="true">♞</span><span class="brand">Chess Club</span></div>'+
+ '<h1 class="auth-title">Create account</h1><p class="auth-description">Register to manage or join a chess club.</p>'+
+ '<form id="authform" class="form">'+
+ '<label id="namefield">Your name<input name="name" class="field" placeholder="Full name" autocomplete="name" minlength="2" maxlength="100" required></label>'+
+ '<label>Email address<input name="email" type="email" class="field" required autocomplete="email"></label>'+
+ '<label>Password<input name="password" type="password" class="field" minlength="10" required autocomplete="new-password"></label>'+
+ '<button type="submit" class="btn" id="authsubmit">Create account</button>'+
+ '<div id="auth-error" class="notice" role="alert" hidden></div></form>'+
+ '<p class="auth-footer"><span class="interactive" id="authswitch" role="button" tabindex="0">Already have an account? Sign in</span></p>'+
+ '</section></div>';
+}
 function render(){if(state.loading){$("app").innerHTML='<div class="auth"><h2>Loading chess club…</h2></div>';return}if(!state.user){$("app").innerHTML=auth()+(state.notice?'<div class="notice" style="position:fixed;top:12px;right:12px">'+esc(state.notice)+'</div>':"");bindAuth();return}let content=renderHeader();if(state.notice)content+='<div class="notice">'+esc(state.notice)+'</div>';if(!state.club){content+='<div class="banner"><div><h2>Start your first chess club</h2><p>Create a club for moderators or join an existing one as a student.</p></div><div class="row">'+button("Create club","new-club")+button("Join club","join-club","btn ghost")+'</div></div>'}else if(state.tournament&&state.tdata)content+=tournamentDetail();else content+=({overview,tournaments,members,attendance,puzzles}[state.tab]||overview)();$("app").innerHTML=shell(content)+modal();bind();}
 function bindAuth(){
  let signup=true;
