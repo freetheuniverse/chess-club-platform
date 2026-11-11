@@ -34,7 +34,7 @@ function lastMovePair(moves){
 
 function create({element,item,interactive,onMove,onError}){
   if(!element)throw Error("Puzzle board element is missing.");
-  const game=new Chess(item.start_fen);
+  let game=new Chess(item.start_fen);
   for(const uci of item.played||[])playUci(game,uci);
   const initialOrientation=item.start_fen.split(" ")[1]==="b"?"black":"white";
   let solved=!!item.solved,busy=false,destroyed=false;
@@ -126,13 +126,12 @@ function create({element,item,interactive,onMove,onError}){
       sync();
     }catch(error){
       if(destroyed)return;
-      if(applied)game.undo();
-      // Rebuild from the last confirmed server position, even if another
-      // automatic reply was partially applied before an exception.
+      // Rebuild from the last confirmed server position, even if an
+      // automatic opponent reply failed partway through processing.
       try{
-        const restored=new Chess(item.start_fen);
-        for(const move of item.played||[])playUci(restored,move);
-        board.set({fen:restored.fen(),lastMove:lastMovePair(item.played)});
+        game=new Chess(item.start_fen);
+        for(const move of item.played||[])playUci(game,move);
+        board.set({fen:game.fen(),lastMove:lastMovePair(item.played)});
       }catch{}
       onError?.(error?.message||"Unable to save puzzle move.");
     }finally{
