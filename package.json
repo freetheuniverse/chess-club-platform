@@ -8,10 +8,10 @@
     "deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply chess-club-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply chess-club-db --remote",
-    "check": "node --check worker/index.js && node --check worker/puzzles.js && node --check public/app.js && node --check public/puzzles-ui.js && node --check public/puzzle-board-entry.js && node --check scripts/copy-piece-assets.mjs && node --test tests/*.test.mjs",
+    "check": "node --check worker/index.js && node --check worker/puzzles.js && node --check public/app.js && node --check public/puzzles-ui.js && node --check public/puzzle-board-entry.js && node --check scripts/copy-chessground-assets.mjs && node --test tests/*.test.mjs",
     "deploy:cloud": "npm run build:client && wrangler deploy --config wrangler.cloud.jsonc",
     "db:migrate:cloud": "wrangler d1 migrations apply chess-club-db --remote --config wrangler.cloud.jsonc",
-    "build:client": "esbuild public/puzzle-chess-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-chess.js && esbuild public/puzzle-board-entry.js --bundle --format=esm --target=es2022 --outfile=public/puzzle-board.js && node scripts/copy-piece-assets.mjs"
+    "build:client": "esbuild public/puzzle-chess-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-chess.js && esbuild public/puzzle-board-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-board.js && node scripts/copy-chessground-assets.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0",
@@ -19,6 +19,6 @@
   },
   "dependencies": {
     "chess.js": "^1.4.0",
-    "@mirasen/chessboard": "^1.5.1"
+    "@lichess-org/chessground": "^10.5.0"
   }
 }
