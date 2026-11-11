@@ -145,13 +145,13 @@ The API returns the starting board position, not the solution. Correctness is ve
 
 Official sources: https://lichess-org.github.io/api/ and https://database.lichess.org/ .
 
-## Animated puzzle chessboard
+## Official Lichess Chessground
 
-The Chess Club puzzle page uses [Mirasen Chessboard](https://github.com/mirasen-io/chessboard) (`@mirasen/chessboard`, MIT license) with [chess.js](https://github.com/jhlywa/chess.js) for rules. The board provides drag-and-drop, tap-to-move, legal-move hints, animated opponent replies, a responsive SVG board, and board flipping. The backend continues to verify all puzzle answers and record progress. The browser never receives the puzzle solution.
+The puzzle board now uses [Chessground](https://github.com/lichess-org/chessground) (`@lichess-org/chessground`), released under GPL-3.0-or-later. It provides drag-and-drop, touch support, highlights, piece movement animations, drawing arrows and circles, and board flipping. We continue using chess.js for the rules and the Cloudflare Worker for validating puzzle solutions and recording attempts.
 
-**Why not Lichess Chessground directly?** [Chessground](https://github.com/lichess-org/chessground) is the actual open-source frontend board used by Lichess, but its GPL-3.0-or-later license requires providing the corresponding source of the combined app to website users. We are using MIT-licensed Mirasen instead, preserving the project's current repository-sharing choices. The visual behavior is Lichess-like, not a copy of Lichess branding or artwork.
+This repository is public and contains its own GPL license. The website links to its full source code and to Lichess. The build copies Chessground's official base, brown-board, and Cburnett-piece CSS into the static assets and publishes its license. No database changes are needed.
 
-The Mirasen default piece set includes Chessnut artwork credited by its authors under Apache 2.0; maintain the package's accompanying license and attribution notices. The client bundle is generated automatically as part of `npm run deploy:cloud`, so there are **no new database migrations** for this board upgrade.
+This dependency replaces the earlier MIT board. Cloudflare's current build image runs Node 24; local development should also use Node 24 or newer.
 
 ## Visual design
 
