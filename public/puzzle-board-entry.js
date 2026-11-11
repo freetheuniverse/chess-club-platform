@@ -18,6 +18,15 @@ function create({element,item,interactive,onMove,onError}) {
   const game=new Chess(item.start_fen);
   for (const uci of item.played||[]) playUci(game,uci);
   const board=createBoard({ element });
+  // The muted tan/brown palette is inspired by a common Lichess board theme.
+  // All rendered pieces come from Mirasen's separately licensed Chessnut set.
+  board.extensions.renderer.setConfig({
+    colors:{
+      board:{light:"#f0d9b5",dark:"#b58863"},
+      coordinates:{light:"#fff7e6",dark:"#5e402b"}
+    },
+    animation:{durationMs:220}
+  });
   const initialOrientation=item.start_fen.split(" ")[1]==="b"?"black":"white";
   board.setOrientation(initialOrientation);
   board.setPosition(game.fen());
