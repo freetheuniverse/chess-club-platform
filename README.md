@@ -65,7 +65,7 @@ Cloudflare will provide a `workers.dev` URL. The frontend static assets and JSON
 - Only moderators can create tournaments, enroll players, start rounds and enter results.
 - Pairings try to avoid repeat opponents, but are **not** a fully FIDE-compliant Swiss engine.
 - Attendance has a database uniqueness constraint on `(club_id,user_id,event_date)`. Enrolling the same participant in several tournaments on the same date is idempotent.
-- Future-dated events do not record attendance ahead of time. If a player is enrolled before the event date, attendance must be finalized on the event date in a future workflow; this MVP does not yet automate that check.
+- Future-dated events do not record attendance ahead of time. If a player is enrolled before the event date, their attendance is recorded when the moderator generates the first round on that date. A tournament never started will not produce attendance automatically.
 - The puzzle attempts table is reserved for future server-verified integrations. Client-reported puzzle accuracy must not be trusted.
 
 ## Next improvements
