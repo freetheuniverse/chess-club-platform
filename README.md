@@ -155,7 +155,7 @@ This dependency replaces the earlier MIT board. Cloudflare's current build image
 
 ## Visual design and navigation
 
-The current website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. The sidebar links to Overview, Tournaments, **Puzzle Assignments**, Members, and Attendance. "Puzzle Assignments" is the destination; **Assign puzzles** is the moderator's creation action.
+The current website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. The sidebar puts **Your clubs** first, with club creation (+) and Join a club immediately below the managed and joined club lists. Once a club is selected, its name appears under **Club workspace**, followed by Overview, Tournaments, **Puzzle Assignments**, Members, and Attendance. This makes clear that these pages belong to the active club. "Puzzle Assignments" is the destination; **Assign puzzles** is the moderator's creation action.
 
 Clubs are displayed in two groups based on the signed-in account's membership role: **Managed clubs** (moderator access) and **Joined clubs**. A plus button beside Managed clubs creates a new club; a Join a club action remains available. Selecting a club clears tournament and puzzle state from the previous club and opens the new club's overview. On small screens the sidebar becomes a toggleable drawer.
 
