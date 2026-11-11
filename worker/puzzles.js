@@ -54,8 +54,18 @@ async function getLichess(url) {
 function sanitizedPuzzle(item){
   const p=item?.puzzle;
   if(!p || !/^[a-zA-Z0-9]{5}$/.test(p.id||""))throw Error("Lichess returned an invalid puzzle ID");
+  let startFen;
+  try { startFen=createStartFen(item); }
+  catch (cause) {
+    console.error("Lichess puzzle position validation failed", {
+      puzzleId:p.id, initialPly:p.initialPly,
+      gameMoveCount:item?.game?.pgn?.trim().split(/\s+/).length,
+      hasFen:!!p.fen, message:String(cause?.message||cause)
+    });
+    throw Error("Lichess puzzle "+p.id+" has an invalid starting position: "+String(cause?.message||cause));
+  }
   return {lichess_id:p.id, rating:Number(p.rating)||0, themes:JSON.stringify(p.themes||[]),
-    start_fen:createStartFen(item),solution_json:JSON.stringify(p.solution)};
+    start_fen:startFen,solution_json:JSON.stringify(p.solution)};
 }
 async function createAssignment(db, club, user, payload){
   const title=String(payload.title||"").trim();
