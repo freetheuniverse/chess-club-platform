@@ -87,6 +87,17 @@ The online address is publicly reachable; use test data only until authenticatio
 
 If Cloudflare reports `ENOENT: /opt/buildhome/repo/package.json`, check the build's branch label. The `main` branch is intentionally only a placeholder; the application resides on `dev`. In Cloudflare, set **Settings → Build → Branch control → Production branch** to `dev` and save. **Retry build** may rerun the old `main` commit; a fresh push to `dev` triggers a new build from the correct branch.
 
+### Registration troubleshooting
+
+The Worker provides a safe JSON health endpoint at `/api/health`.
+
+- `{"status":"ready","database":"ready"}`: the tables required to create a user session exist. If signup still fails, check the registration response and Cloudflare Worker Logs.
+- An error saying **online database is not initialized**: run `npm run db:migrate:cloud` in the repository folder on your Windows computer. This is a **remote** migration, not `db:migrate:local`.
+- A Cloudflare 1102 or **CPU exceeded** error: investigate password hashing and the Workers plan's CPU limit. Do not reduce password-hashing strength just to bypass the limit; use an appropriate authentication provider or plan instead.
+- A Cloudflare Access login or HTML response: verify that your authorized Cloudflare Access login is complete before retrying.
+
+Registration messages are shown under the form and no longer erase the entered information.
+
 ## Design and data rules
 
 - Roles are scoped per club: moderator vs student.
