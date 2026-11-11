@@ -138,7 +138,17 @@ function bind({state,render,api,post,action}){
    const p=game.get(target);
    if(p&&p.color===game.turn()){state.puzzleSquare=target;render();return;}
    let mv;
-   try{mv=game.move({from,to:target,promotion:"q"});}catch{}
+   const moving=game.get(from);
+   let promotion="q";
+   if(moving?.type==="p" && (target.endsWith("1") || target.endsWith("8"))){
+     const answer=window.prompt("Promote to: q (queen), r (rook), b (bishop), n (knight)","q");
+     if(answer===null){render();return;}
+     promotion=String(answer).trim().toLowerCase();
+     if(!["q","r","b","n"].includes(promotion)){
+       state.puzzleFeedback="Choose q, r, b, or n for promotion.";render();return;
+     }
+   }
+   try{mv=game.move({from,to:target,promotion});}catch{}
    if(!mv){state.puzzleFeedback="That is not a legal move.";render();return;}
    state.puzzleMoving=true;
    try{
