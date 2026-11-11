@@ -21,22 +21,44 @@ a:hover{text-decoration:underline}
 .small,.muted{font-size:12px;color:var(--subtle)}
 .eyebrow,.tag{font-size:10px;text-transform:uppercase;letter-spacing:.09em;font-weight:650;color:var(--subtle)}
 .eyebrow{margin-bottom:3px}
+
+/* App shell: permanent desktop sidebar, mobile drawer */
 .shell{min-height:100vh}
-.topbar{background:var(--paper);border-bottom:1px solid var(--line)}
-.topbar-inner{max-width:1320px;margin:0 auto;padding:15px 28px;display:flex;justify-content:space-between;align-items:center;gap:18px}
-.identity{display:flex;align-items:center;gap:12px}
-.brand{font-size:18px;font-weight:650;letter-spacing:-.025em;display:flex;align-items:center;gap:10px}
-.mark{width:36px;height:36px;display:grid;place-items:center;border:1px solid #cfd9d1;border-radius:5px;background:white;color:var(--primary);font-size:26px;font-family:"Segoe UI Symbol",serif}
+.topbar{position:relative;z-index:51;background:var(--paper);border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:none;margin:0;padding:12px 28px;display:flex;justify-content:space-between;align-items:center;gap:14px;min-height:64px}
+.identity{display:flex;align-items:center;gap:13px;min-width:0}
+.brand{font-size:18px;font-weight:680;letter-spacing:-.025em;white-space:nowrap}
 .header-actions,.row,.spread{display:flex;align-items:center;gap:10px}
 .spread{justify-content:space-between;flex-wrap:wrap}
 .header-actions{flex-wrap:wrap;justify-content:flex-end}
 .header-user{font-size:12px;color:var(--subtle)}
-.tab-bar{background:var(--paper);border-bottom:1px solid var(--line)}
-.tab-inner{max-width:1320px;margin:auto;display:flex;align-items:center;gap:24px;padding:0 28px;overflow-x:auto}
-.nav{flex:0 0 auto;background:transparent;color:var(--subtle);border:0;border-bottom:2px solid transparent;padding:12px 2px 11px;font-size:13px;font-weight:600}
-.nav:hover{color:var(--ink)}
-.nav.active{border-color:var(--primary);color:var(--primary)}
-.main{width:100%;max-width:1320px;margin:auto;padding:25px 28px 50px}
+.sidebar-toggle{display:none;border:1px solid var(--line);background:var(--paper);color:var(--primary);border-radius:4px;width:36px;height:36px;font-size:19px;align-items:center;justify-content:center}
+.app-layout{display:grid;grid-template-columns:244px minmax(0,1fr);min-height:calc(100vh - 64px)}
+.sidebar{display:flex;flex-direction:column;min-width:0;background:#193b2c;color:#e7f0e8;padding:24px 12px 20px;min-height:calc(100vh - 64px)}
+.side-nav,.side-club-list{display:flex;flex-direction:column;gap:3px}
+.side-section-label{color:#a5beb0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:750;padding:0 13px;margin-bottom:11px}
+.side-link,.side-club{border:0;color:#dbe9df;background:transparent;display:flex;align-items:center;text-align:left;gap:12px;width:100%;border-radius:5px;min-height:41px;padding:9px 12px;font-size:13px;font-weight:560;line-height:1.3;transition:background-color .12s ease,color .12s ease}
+.side-link:hover,.side-club:hover{background:#2a5240;color:#fff}
+.side-link.active{background:#315a45;color:#fff;font-weight:680}
+.side-link.active:before{content:"";width:3px;height:22px;background:#c7dfc5;position:absolute;left:0;border-radius:0 3px 3px 0}
+.side-link{position:relative}
+.side-icon{flex:0 0 18px;opacity:.82}
+.side-link.active .side-icon{opacity:1}
+.side-section-divider{height:1px;background:#3b5949;margin:20px 9px 17px}
+.side-section-heading{display:flex;align-items:center;justify-content:space-between;gap:7px;padding-right:9px;margin-bottom:6px}
+.side-section-heading .side-section-label{margin-bottom:0}
+.side-add{width:27px;height:27px;display:grid;place-items:center;color:#fff;border:1px solid #678773;border-radius:4px;background:#254c39;font-size:21px;line-height:1;padding:0}
+.side-add:hover{background:#47745a;border-color:#8cb49a}
+.side-club{gap:10px;min-height:37px;padding:8px 13px;font-size:12px;font-weight:520}
+.side-club.active{background:#274e3a;color:#fff;font-weight:680}
+.side-club-dot{flex:0 0 7px;width:7px;height:7px;border-radius:100%;border:1px solid #89ad93}
+.side-club.active .side-club-dot{background:#d0e9ca;border-color:#d0e9ca}
+.side-club-name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-empty{color:#a3b9ab;font-size:12px;padding:4px 13px 9px}
+.side-footer{margin-top:auto;padding-top:28px}
+.side-join{color:#d5e8dc}
+.sidebar-scrim{display:none}
+.main{width:100%;min-width:0;max-width:1500px;margin:0 auto;padding:25px 28px 50px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px}
 .top h1{margin:0}
 .context-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -199,3 +221,37 @@ td.player-name{font-weight:600}
 .license-footer{font-size:11px;color:var(--subtle);text-align:center;padding:12px 16px 18px}
 .license-footer a{color:var(--subtle);text-decoration:underline;text-underline-offset:2px}
 .license-footer a:hover{color:var(--primary)}
+
+/* Sidebar responsiveness and keyboard-accessible mobile navigation */
+@media (max-width:1040px){
+ .app-layout{grid-template-columns:220px minmax(0,1fr)}
+ .main{padding:22px 20px 38px}
+ .sidebar{padding:20px 10px}
+}
+@media (max-width:760px){
+ .topbar{position:sticky;top:0}
+ .topbar-inner{max-width:none;padding:11px 16px;min-height:62px}
+ .sidebar-toggle{display:inline-flex}
+ .brand{font-size:17px}
+ .app-layout{display:block;min-height:calc(100vh - 62px)}
+ .sidebar{position:fixed;z-index:50;left:0;top:62px;bottom:0;width:min(288px,85vw);height:calc(100dvh - 62px);min-height:0;overflow-y:auto;overscroll-behavior:contain;transform:translateX(-102%);transition:transform .18s ease;box-shadow:6px 4px 22px rgba(7,25,13,.13);pointer-events:none;padding:20px 12px}
+ .sidebar.is-open{transform:translateX(0);pointer-events:auto}
+ .sidebar-scrim{display:block;position:fixed;z-index:49;top:62px;left:0;right:0;bottom:0;background:#0b2117a3;border:0;width:100%;padding:0;cursor:default}
+ .main{max-width:none;width:100%;padding:20px 15px 36px}
+ .header-user{display:none}
+ .side-add{min-width:30px;min-height:30px}
+}
+@media (max-width:500px){
+ .topbar-inner{padding:10px 13px}
+ .brand{font-size:16px;white-space:normal}
+ .header-actions .btn.text{min-height:32px;padding:4px}
+ .main{padding:18px 13px 32px}
+}
+@media (prefers-reduced-motion:reduce){
+ .sidebar,.side-link,.side-club{transition:none}
+}
+@media print{
+ .sidebar,.sidebar-scrim,.sidebar-toggle{display:none!important}
+ .app-layout{display:block}
+ .main{max-width:none;padding:0}
+}
