@@ -25,7 +25,7 @@ function boardHtml(item,state){
  const files=flip?"hgfedcba":"abcdefgh",ranks=flip?"12345678":"87654321";
  const squares=[];
  for(const rank of ranks)for(const file of files){
-   const square=file+rank,piece=game.get(square),dark=((file.charCodeAt(0)-97+Number(rank))%2===0);
+   const square=file+rank,piece=game.get(square),dark=((file.charCodeAt(0)-97+Number(rank))%2===1);
    const selected=state.puzzleSquare===square;
    const pieceHtml=piece?'<span class="chess-piece '+(piece.color==="w"?"white-piece":"black-piece")+'">'+symbols[piece.color][piece.type]+'</span>':"";
    squares.push('<button type="button" aria-label="'+square+(piece?" "+piece.color+" "+piece.type:"")+'" class="chess-square '+(dark?"dark":"light")+(selected?" selected":"")+'" data-puzzle-square="'+square+'" '+(item.solved?'disabled':'')+'>'+pieceHtml+'</button>');
