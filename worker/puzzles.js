@@ -27,9 +27,15 @@ function createStartFen(item){
     chess=new Chess();
     if(!item?.game?.pgn)throw Error("Lichess did not provide a replayable position");
     chess.loadPgn(item.game.pgn);
-    const ply=Number(p.initialPly);
-    if(!Number.isInteger(ply)||ply<0||ply>chess.history().length)throw Error("Lichess game has unexpected move count");
-    for(let i=chess.history().length;i>ply;i--)chess.undo();
+    // Lichess initialPly is the ZERO-BASED index of the final setup move,
+    // not the number of moves to keep. That last opponent move is included
+    // in game.pgn and must be shown before the student attempts a solution.
+    // Example: initialPly=52 means the puzzle begins after 53 half-moves.
+    const lastSetupIndex=Number(p.initialPly);
+    const totalMoves=chess.history().length;
+    if(!Number.isInteger(lastSetupIndex)||lastSetupIndex<0||lastSetupIndex+1>totalMoves)
+      throw Error("Lichess game has an unexpected move count");
+    for(let i=totalMoves;i>lastSetupIndex+1;i--)chess.undo();
   }
   const startFen=chess.fen();
   for(const m of p.solution)applyUci(chess,m);
