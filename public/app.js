@@ -25,11 +25,12 @@ function sideIcon(name){
  const shapes={
    overview:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
    tournaments:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v3a4 4 0 0 0 4 4m9-7h3v3a4 4 0 0 1-4 4"/>',
-   puzzles:'<path d="M8 3H4a1 1 0 0 0-1 1v4h2a2 2 0 1 1 0 4H3v8a1 1 0 0 0 1 1h5v-2a2 2 0 1 1 4 0v2h7a1 1 0 0 0 1-1v-7h-2a2 2 0 1 1 0-4h2V4a1 1 0 0 0-1-1h-7v2a2 2 0 1 1-4 0V3Z"/>',
+   puzzles:'<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 12l2 2 4-4M9 18h6"/>',
    members:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1"/>',
-   attendance:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18m-13 5 2 2 4-4"/>',
+   attendance:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 16l2 2 5-5"/>',
    club:'<path d="M3 21V8l9-5 9 5v13M3 21h18M9 21v-7h6v7"/>',
-   join:'<path d="M9 12h12M16 7l5 5-5 5M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>'
+   join:'<path d="M9 12h12M16 7l5 5-5 5M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>',
+   plus:'<path d="M12 5v14M5 12h14"/>'
  };
  return '<svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(shapes[name]||shapes.club)+'</svg>';
 }
@@ -48,7 +49,7 @@ function shell(content){
    '<span class="side-club-dot" aria-hidden="true"></span><span class="side-club-name">'+esc(c.name)+'</span></button>'
  ).join("");
  const clubGroups=
-   (managed.length?'<div class="side-group-label">Managed</div><div class="side-club-list">'+clubLinks(managed)+'</div>':'')+
+   (managed.length?'<div class="side-club-list">'+clubLinks(managed)+'</div>':'')+
    (joined.length?'<div class="side-group-label">Joined</div><div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
    (!state.clubs.length?'<p class="side-empty">No clubs yet. Create or join one to get started.</p>':'');
  const workspace=currentClub?
@@ -66,9 +67,9 @@ function shell(content){
    '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
    '<nav class="side-clubs" aria-label="Your clubs">'+
      '<div class="side-section-heading"><span class="side-section-label">Your clubs</span>'+
-       '<button type="button" class="side-add" data-action="new-club" title="Create a new club" aria-label="Create a new club">+</button></div>'+
+       '<button type="button" class="side-add" data-action="add-club" title="Add a Club" aria-label="Add a Club">'+sideIcon("plus")+'</button></div>'+
      clubGroups+
-     '<button type="button" class="side-link side-join" data-action="join-club">'+sideIcon("join")+'<span>Join a club</span></button>'+
+     '<button type="button" class="side-link side-join" data-action="add-club">'+sideIcon("plus")+'<span>Add a Club</span></button>'+
    '</nav>'+workspace+
    '</aside>'+
    '<main class="main" id="maincontent">'+content+'</main></div></div>';
@@ -76,22 +77,54 @@ function shell(content){
 function renderHeader(){
  const name=state.data?.club?.name||"Your clubs";
  const titles={overview:"Overview",tournaments:"Tournaments",members:"Members",attendance:"Attendance",puzzles:"Puzzle Assignments"};
- return '<div class="top"><div><div class="eyebrow">'+esc(name)+'</div><h1>'+titles[state.tab]+'</h1></div>'+
+ return '<div class="top"><div><div class="page-club-name">'+esc(name)+'</div><h1>'+titles[state.tab]+'</h1></div>'+
   (state.data?.role==="moderator" && ["overview","tournaments"].includes(state.tab)?button("New tournament","new-tournament"):"")+
   '</div>';
 }
+function messageTimestamp(raw){
+ const ts=String(raw||"");
+ if(!ts)return "";
+ const parsed=new Date(ts.includes("T")?ts:ts.replace(" ","T")+"Z");
+ return Number.isNaN(parsed.getTime())?ts:parsed.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
+}
 function overview(){
- const d=state.data;
+ const d=state.data,canManage=d.role==="moderator",messages=d.messages||[];
  const active=d.tournaments.filter(t=>t.status==="active").length;
  const dates=new Set(d.attendance.map(x=>x.event_date)).size;
- return '<div class="summary-line">'+[
-  [d.members.length,"Members"],[d.tournaments.length,"Tournaments"],[active,"In progress"],[dates,"Attendance dates"]
- ].map(([v,k])=>'<div class="summary-cell"><span class="summary-label">'+k+'</span><div class="summary-value">'+v+'</div></div>').join("")+
- '</div><div class="content-grid"><section class="panel"><div class="panel-heading"><h2>Recent tournaments</h2>'+button("View all","tab:tournaments","btn ghost small")+'</div>'+
- tournamentList(d.tournaments.slice(0,6))+'</section><div class="stack"><section class="panel"><div class="panel-heading"><h2>Club access</h2></div>'+
- '<div class="panel-body">'+(d.role==="moderator"?'<p class="panel-note">Share this code with new members.</p><div class="spread" style="margin-top:10px"><span class="code-line">'+esc(d.club.join_code)+'</span>'+button("Copy code","copy-code","btn ghost small")+'</div>':'<p class="panel-note">You are a member of this club.</p>')+
- '</div></section><section class="panel"><div class="panel-heading"><h2>Attendance</h2></div><div class="panel-body"><p class="panel-note">'+d.attendance.length+' recent attendance records</p><p style="margin-top:12px">'+button("View attendance","tab:attendance","btn ghost small")+'</p></div></section></div></div>';
+ const ready=d.board_ready!==false;
+ const stats=[["Members",d.members.length],["Tournaments",d.tournaments.length],["In progress",active],["Attendance dates",dates]];
+ const statsRows=stats.map(([label,value])=>'<tr><th scope="row">'+label+'</th><td class="overview-number">'+value+'</td></tr>').join("");
+ const tournamentRows=d.tournaments.slice(0,7).map(t=>
+   '<tr><td><button type="button" class="reference-link" data-action="tournament:'+t.id+'">'+esc(t.title)+'</button>'+
+   '<span class="muted overview-tournament-date">'+date(t.event_date)+'</span></td><td class="overview-status"><span class="pill '+esc(t.status)+'">'+esc(t.status)+'</span></td></tr>'
+ ).join("");
+ const posts=messages.map(m=>'<article class="message-post">'+
+   '<div class="message-title-line"><div class="message-title-group">'+
+     (m.is_pinned?'<span class="message-pinned">Pinned</span>':'')+
+     '<h3>'+esc(m.title)+'</h3></div>'+
+     (canManage?'<div class="message-actions">'+
+       button(m.is_pinned?"Unpin":"Pin","pin-message:"+m.id,"btn text")+
+       button("Delete","delete-message:"+m.id,"btn text")+
+     '</div>':'')+
+   '</div><p class="message-meta">'+esc(m.author_name)+' · '+esc(messageTimestamp(m.created_at))+'</p>'+
+   '<p class="message-body">'+esc(m.body)+'</p></article>'
+ ).join("");
+ const board=ready?
+   (messages.length?'<div class="message-feed">'+posts+'</div>':
+    '<div class="message-empty"><h3>No messages yet</h3><p>'+(canManage?"Post an update, reminder, or announcement for your club.":"Club announcements will appear here.")+'</p></div>'):
+   '<div class="message-empty"><h3>Message board setup required</h3><p>The new database migration needs to be applied before announcements can be posted.</p><code>npm run db:migrate:cloud</code></div>';
+ return '<div class="overview-layout"><section class="panel message-board">'+
+   '<div class="panel-heading"><div><h2>Message board</h2><p class="panel-note">Updates for '+esc(d.club.name)+'</p></div>'+
+     (canManage&&ready?button("New message","new-message","btn small"):"")+'</div>'+
+   board+'</section>'+
+   '<aside class="overview-side"><section class="panel"><div class="panel-heading"><h2>Quick reference</h2></div>'+
+     '<div class="tablewrap"><table class="overview-facts"><tbody>'+statsRows+'</tbody></table></div>'+
+     '<div class="overview-tournament-heading"><h3>Tournaments</h3>'+button("View all","tab:tournaments","btn text")+'</div>'+
+     (tournamentRows?'<div class="tablewrap"><table class="overview-tournaments"><tbody>'+tournamentRows+'</tbody></table></div>':
+       '<div class="overview-no-tournaments">No tournaments yet.'+(canManage?' '+button("Create one","new-tournament","btn text"):"")+'</div>')+
+   '</section></aside></div>';
 }
+
 function tournamentList(items){
  if(!items.length)return '<div class="empty-action"><p>No tournaments have been created.</p>'+button("Start new tournament","new-tournament")+'</div>';
  return '<div class="tablewrap"><table aria-label="Tournaments"><thead><tr><th>Tournament</th><th>Date</th><th class="num">Players</th><th>Status</th><th></th></tr></thead><tbody>'+
@@ -185,9 +218,18 @@ function tournamentDetail(){
 function modal(){
  if(!state.modal)return "";
  const mode=state.modal;
- const title=mode==="new-club"?"Create club":mode==="join-club"?"Join club":"Start new tournament";
+ if(mode==="add-club")return '<div class="modalcover"><section class="modal" role="dialog" aria-modal="true" aria-label="Add a Club">'+
+   '<div class="modal-heading"><h2>Add a Club</h2><button class="close" type="button" aria-label="Close" data-action="close-modal">×</button></div>'+
+   '<p class="modal-hint">Create a new club to manage, or join an existing one with a club code.</p>'+
+   '<div class="club-choice-list">'+
+     '<button type="button" class="club-choice" data-action="new-club"><strong>Create a club</strong><span>Set up a club and invite members.</span></button>'+
+     '<button type="button" class="club-choice" data-action="join-club"><strong>Join a club</strong><span>Enter a code shared by a club moderator.</span></button>'+
+   '</div></section></div>';
+ const title=mode==="new-club"?"Create club":mode==="join-club"?"Join club":mode==="new-message"?"Post a message":"Start new tournament";
  const fields=mode==="new-club"?'<label>Club name<input class="field" name="name" placeholder="Club name" minlength="3" required></label>':
    mode==="join-club"?'<label>Club code<input class="field" name="code" placeholder="Join code" required></label>':
+   mode==="new-message"?'<label>Title<input class="field" name="title" placeholder="Update or reminder" minlength="3" maxlength="100" required></label>'+
+      '<label>Message<textarea class="field" name="message" rows="5" maxlength="2000" placeholder="Write a message to your club..." required></textarea></label>':
    '<label>Tournament name<input class="field" name="title" placeholder="Tournament name" minlength="3" required></label>'+
    '<label>Date<input type="date" class="field" name="event_date" required></label>'+
    '<div><div class="spread" style="margin-bottom:8px"><h3>Participating members</h3><span class="selection-actions">'+
@@ -198,7 +240,7 @@ function modal(){
  return '<div class="modalcover"><section class="modal" role="dialog" aria-modal="true" aria-label="'+title+'">'+
  '<div class="modal-heading"><h2>'+title+'</h2><button class="close" type="button" aria-label="Close" data-action="close-modal">×</button></div>'+
  '<form id="modalform" class="form">'+fields+'<div class="form-actions">'+button("Cancel","close-modal","btn ghost")+
- '<button type="submit" class="btn">'+(mode==="join-club"?"Join club":mode==="new-club"?"Create club":"Start tournament")+'</button></div></form></section></div>';
+ '<button type="submit" class="btn">'+(mode==="join-club"?"Join club":mode==="new-club"?"Create club":mode==="new-message"?"Publish message":"Start tournament")+'</button></div></form></section></div>';
 }
 function auth(){
  return '<div class="auth"><section class="modal"><div class="identity"><span class="brand">Chess Club Manager</span></div>'+
@@ -226,7 +268,7 @@ function render(){
  if(!state.club){
    content+='<section class="panel"><div class="panel-heading"><h2>Set up your chess club</h2></div>'+
    '<div class="empty-action"><p>Create a club or join one with an invitation code.</p><div class="row">'+
-   button("Create club","new-club")+button("Join club","join-club","btn ghost")+'</div></div></section>';
+   button("Add a Club","add-club")+'</div></div></section>';
  } else if(viewingTournament) content+=tournamentDetail();
  else content+=({overview,tournaments,members,attendance,puzzles}[state.tab]||overview)();
  $("app").innerHTML=shell(content)+modal();
@@ -283,7 +325,7 @@ function bind(){
        state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
        state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;
      });
-   } else if(a==="new-club"||a==="join-club"||a==="new-tournament"){
+   } else if(a==="add-club"||a==="new-club"||a==="join-club"||a==="new-tournament"||a==="new-message"){
      state.modal=a;state.notice="";state.sidebarOpen=false;render();
    } else if(a==="close-modal"){
      state.modal=null;render();
@@ -291,6 +333,11 @@ function bind(){
      navigator.clipboard?.writeText(state.data.club.join_code).then(()=>{state.notice="Join code copied.";render()});
    } else if(a==="logout"){
      action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;});
+   } else if(a==="pin-message"){
+     action(async()=>{await post("clubs/"+state.club+"/messages/"+id+"/pin");});
+   } else if(a==="delete-message"){
+     if(!confirm("Delete this message from the club board?"))return;
+     action(async()=>{await api("clubs/"+state.club+"/messages/"+id,{method:"DELETE"});});
    } else if(a==="tournament"){
      action(async()=>{
        state.tournament=id;state.viewRound=null;state.expandedGame=null;
@@ -348,6 +395,9 @@ function bind(){
      let result;
      if(mode==="new-club"){result=await post("clubs/create",b);state.club=result.id;state.tab="overview";state.sidebarOpen=false;}
      else if(mode==="join-club"){result=await post("clubs/join",b);state.club=result.club.id;state.tab="overview";state.sidebarOpen=false;}
+     else if(mode==="new-message"){
+       result=await post("clubs/"+state.club+"/messages",{title:b.title,message:b.message});
+     }
      else{
        result=await post("clubs/"+state.club+"/tournaments",{title:b.title,event_date:b.event_date});
        state.tournament=result.id;state.viewRound=null;state.expandedGame=null;
