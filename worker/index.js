@@ -265,3 +265,6 @@ export default {
     }
   }
 };
+
+// Named exports are used by the Node.js authentication regression tests.
+export { makePassword, verifyPassword };
