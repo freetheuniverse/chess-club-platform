@@ -87,6 +87,12 @@ The online address is publicly reachable; use test data only until authenticatio
 
 If Cloudflare reports `ENOENT: /opt/buildhome/repo/package.json`, check the build's branch label. The `main` branch is intentionally only a placeholder; the application resides on `dev`. In Cloudflare, set **Settings → Build → Branch control → Production branch** to `dev` and save. **Retry build** may rerun the old `main` commit; a fresh push to `dev` triggers a new build from the correct branch.
 
+### Cloudflare password hashing compatibility
+
+Cloudflare's production Worker runtime rejects a **single** PBKDF2 call with more than 100,000 iterations. Our original password hashing used 210,000 in one call, resulting in registration HTTP 500 even though the database was healthy. The Worker now stores versioned, random-salted hashes using three sequential 100,000-iteration PBKDF2-SHA256 operations with domain-separated salts. This is a custom chained KDF; it is **not identical** to one standard 300,000-iteration PBKDF2 operation and is an interim development solution. No raw passwords are saved.
+
+Automated hash tests run in the `npm run check` build command, and Worker invocation logging is enabled for diagnosing failures. Cloudflare's 10 ms free-tier CPU limit may still impose restrictions, so test against an actual deployed Worker. For a public student rollout, replace this prototype authentication system with a managed identity solution and add verified email, account recovery and abuse controls.
+
 ### Registration troubleshooting
 
 The Worker provides a safe JSON health endpoint at `/api/health`.
