@@ -7,7 +7,10 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply chess-club-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply chess-club-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply chess-club-db --remote",
+    "check": "node --check worker/index.js && node --check public/app.js",
+    "deploy:cloud": "wrangler deploy --config wrangler.cloud.jsonc",
+    "db:migrate:cloud": "wrangler d1 migrations apply chess-club-db --remote --config wrangler.cloud.jsonc"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
