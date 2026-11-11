@@ -152,3 +152,30 @@ td.player-name{font-weight:600}
 @media (max-width:710px){.content-grid,.tournament-workspace{grid-template-columns:1fr}.main{padding:15px 13px 36px}.topbar-inner{padding:10px 13px}.tab-inner{padding:0 13px;gap:18px}.top{align-items:start}.header-user{display:none}.summary-line{gap:0}.summary-cell{padding:0 12px}.summary-value{font-size:20px}.tournament-workspace .workspace-main{order:-1}.roster-list{max-height:170px}}
 @media (max-width:500px){.brand{font-size:16px}.mark{width:31px;height:31px;font-size:23px}.topbar-inner{align-items:start}.header-actions{gap:5px}.header-actions .btn{min-height:30px;padding:4px 7px;font-size:11px}.header-actions .field{max-width:130px}.top{flex-direction:column;align-items:stretch}.top h1{font-size:21px}.summary-label{font-size:10px}.summary-cell{padding:0 9px}.match-header,.match-row{grid-template-columns:21px minmax(0,1fr) 53px minmax(0,1fr);gap:6px;padding-left:8px;padding-right:8px}.match-header{font-size:9px}.player-slot{font-size:12px}.vs-toggle{min-width:47px;padding:3px;font-size:10px}.panel-heading{padding:12px}.modal{padding:18px}}
 @media print{.topbar,.tab-bar,.no-print,.roster-add,.back{display:none!important}body{background:#fff}.main{max-width:none;padding:0}.panel{break-inside:avoid}.tournament-workspace{display:block}.tournament-workspace>aside{display:none}.workspace-main{display:block}.workspace-main>.panel{margin-bottom:16px}}
+
+/* Puzzle assignments — consistent with the SHJC tournament workspace */
+.puzzle-form-layer{position:fixed;inset:0;background:#17231b9c;display:grid;place-items:center;padding:16px;z-index:60}
+.puzzle-form-panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);width:min(640px,100%);max-height:94vh;overflow-y:auto}
+.puzzle-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.puzzle-member-list{max-height:170px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);margin-top:8px}
+.puzzle-item{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:12px 15px;background:#fff;border:0;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--ink)}
+.puzzle-item:last-child{border-bottom:none}
+.puzzle-item:hover{background:#f8faf8}
+.puzzle-item.current{background:var(--primary-light);border-left:3px solid var(--primary);padding-left:12px;font-weight:650}
+.puzzle-solving{display:grid;grid-template-columns:minmax(245px,430px) minmax(150px,1fr);gap:23px;align-items:start;padding:18px}
+.chess-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;max-width:430px;aspect-ratio:1;border:1px solid #c4cfc6;background:#fff}
+.chess-square{border:0;border-radius:0;display:flex;align-items:center;justify-content:center;padding:0;aspect-ratio:1;cursor:pointer;position:relative;min-width:0}
+.chess-square.light{background:#edf1e9}
+.chess-square.dark{background:#a4b8a6}
+.chess-square.selected{box-shadow:inset 0 0 0 3px #2e684a;background:#cadfc6}
+.chess-square:disabled{cursor:default}
+.chess-square:hover:not(:disabled){filter:brightness(.95)}
+.chess-piece{font-size:clamp(20px,3.2vw,39px);font-family:"Segoe UI Symbol","DejaVu Sans",serif;line-height:1;pointer-events:none}
+.white-piece{color:white;-webkit-text-stroke:1.2px #293a31;text-shadow:0 1px 1px #25352d}
+.black-piece{color:#202924;text-shadow:0 0 1px #202924}
+.puzzle-instructions strong{font-size:14px}
+.puzzle-instructions>p{margin-top:8px;line-height:1.55}
+.puzzle-feedback{font-size:13px;font-weight:600;color:var(--primary);min-height:22px;margin-top:16px}
+.puzzle-feedback:empty{min-height:0}
+@media(max-width:850px){.puzzle-solving{grid-template-columns:minmax(200px,360px) minmax(130px,1fr);gap:14px;padding:13px}}
+@media(max-width:610px){.puzzle-solving{grid-template-columns:1fr}.chess-board{max-width:min(100%,420px);margin-inline:auto}.puzzle-form-grid{grid-template-columns:1fr}.chess-piece{font-size:clamp(23px,9vw,39px)}}
