@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",loading:true,viewRound:null,expandedGame:null};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -80,10 +80,8 @@ function attendance(){
  '</section>';
 }
 function puzzles(){
- return '<section class="panel"><div class="panel-heading"><h2>Chess puzzles</h2></div><div class="panel-body">'+
- '<p class="panel-note">Puzzle practice and verified progress tracking are not yet connected to this club.</p>'+
- '<div style="margin-top:16px"><a class="btn ghost" href="https://lichess.org/training" target="_blank" rel="noopener noreferrer">Practice on Lichess</a></div>'+
- '</div></section>';
+ return window.PuzzleModule ? window.PuzzleModule.page(state) :
+ '<section class="panel"><div class="panel-body">Puzzle interface could not load. Refresh the page.</div></section>';
 }
 function tournamentDetail(){
  const d=state.tdata,t=d.tournament,can=state.data.role==="moderator",completed=t.status==="completed";
@@ -230,7 +228,10 @@ function bind(){
    const [a,id,value]=el.dataset.action.split(":");
    if(a==="tab"){
      state.tab=id;state.tournament=null;state.tdata=null;
-     state.viewRound=null;state.expandedGame=null;render();
+     state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;
+     if(id==="puzzles" && window.PuzzleModule){
+       action(async()=>{await window.PuzzleModule.list(state,api);});
+     } else render();
    } else if(a==="new-club"||a==="join-club"||a==="new-tournament"){
      state.modal=a;state.notice="";render();
    } else if(a==="close-modal"){
@@ -287,6 +288,7 @@ function bind(){
  });
  const select=$("clubselect");
  if(select)select.onchange=()=>action(async()=>{state.club=select.value;state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;});
+ if(window.PuzzleModule && state.tab==="puzzles")window.PuzzleModule.bind({state,render,api,post,action});
  const form=$("modalform");
  if(form)form.onsubmit=e=>{
    e.preventDefault();
