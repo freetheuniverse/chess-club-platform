@@ -37,6 +37,7 @@ function shell(content){
  const pages=[["overview","Overview"],["tournaments","Tournaments"],["puzzles","Puzzle Assignments"],["members","Members"],["attendance","Attendance"]];
  const managed=state.clubs.filter(c=>c.role==="moderator");
  const joined=state.clubs.filter(c=>c.role!=="moderator");
+ const currentClub=state.clubs.find(c=>c.id===state.club);
  const pageLinks=pages.map(([key,title])=>
    '<button type="button" class="side-link '+(state.tab===key?"active":"")+'" data-action="tab:'+key+'"'+
    (state.tab===key?' aria-current="page"':'')+'>'+sideIcon(key)+'<span>'+title+'</span></button>'
@@ -46,6 +47,16 @@ function shell(content){
    (state.club===c.id?'aria-current="true" ':'')+'title="'+esc(c.name)+'">'+
    '<span class="side-club-dot" aria-hidden="true"></span><span class="side-club-name">'+esc(c.name)+'</span></button>'
  ).join("");
+ const clubGroups=
+   (managed.length?'<div class="side-group-label">Managed</div><div class="side-club-list">'+clubLinks(managed)+'</div>':'')+
+   (joined.length?'<div class="side-group-label">Joined</div><div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
+   (!state.clubs.length?'<p class="side-empty">No clubs yet. Create or join one to get started.</p>':'');
+ const workspace=currentClub?
+   '<div class="side-section-divider"></div><div class="side-workspace-heading">'+
+     '<div class="side-section-label">Club workspace</div>'+
+     '<div class="side-workspace-club" title="'+esc(currentClub.name)+'">'+esc(currentClub.name)+'</div>'+
+   '</div><nav class="side-nav" aria-label="Sections for '+esc(currentClub.name)+'">'+pageLinks+'</nav>':
+   '<div class="side-section-divider"></div><p class="side-empty side-workspace-empty">Choose a club above to open its workspace.</p>';
  return '<div class="shell"><header class="topbar"><div class="topbar-inner">'+
    '<div class="identity"><button type="button" class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Toggle navigation" aria-controls="sidebar-nav" aria-expanded="'+!!state.sidebarOpen+'"><span aria-hidden="true">☰</span></button>'+
    '<span class="brand">Chess Club Manager</span></div>'+
@@ -53,16 +64,13 @@ function shell(content){
    '<div class="app-layout">'+
    (state.sidebarOpen?'<button type="button" class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Close navigation"></button>':'')+
    '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
-   '<nav class="side-nav" aria-label="Sections"><div class="side-section-label">Workspace</div>'+pageLinks+'</nav>'+
-   '<div class="side-section-divider"></div>'+
-   '<div class="side-section-heading"><span class="side-section-label">Managed clubs</span>'+
-   '<button type="button" class="side-add" data-action="new-club" title="Create a new club" aria-label="Create a new club">+</button></div>'+
-   '<div class="side-club-list">'+(managed.length?clubLinks(managed):'<p class="side-empty">No clubs managed yet</p>')+'</div>'+
-   (joined.length?'<div class="side-section-divider"></div><div class="side-section-heading"><span class="side-section-label">Joined clubs</span></div>'+
-   '<div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
-   '<div class="side-footer">'+
-   '<button type="button" class="side-link side-join" data-action="join-club">'+sideIcon("join")+'<span>Join a club</span></button>'+
-   '</div></aside>'+
+   '<nav class="side-clubs" aria-label="Your clubs">'+
+     '<div class="side-section-heading"><span class="side-section-label">Your clubs</span>'+
+       '<button type="button" class="side-add" data-action="new-club" title="Create a new club" aria-label="Create a new club">+</button></div>'+
+     clubGroups+
+     '<button type="button" class="side-link side-join" data-action="join-club">'+sideIcon("join")+'<span>Join a club</span></button>'+
+   '</nav>'+workspace+
+   '</aside>'+
    '<main class="main" id="maincontent">'+content+'</main></div></div>';
 }
 function renderHeader(){
