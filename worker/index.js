@@ -1,3 +1,4 @@
+import { handlePuzzleRequest } from "./puzzles.js";
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 const error = (message, status = 400) => json({ error: message }, status);
 const uid = () => crypto.randomUUID();
@@ -172,6 +173,7 @@ export default {
       if(path[1]==="clubs" && path[2] && path.length>=3) {
         const club=path[2],role=await member(db,club,user);
         if(!role)return error("Not a member of this club",403);
+        if(path[3]==="puzzles")return handlePuzzleRequest({db,club,user,role:role.role,path,method,req});
         if(path.length===3 && method==="GET") {
           const c=await db.prepare("SELECT id,name,join_code FROM clubs WHERE id=?").bind(club).first();
           const members=(await db.prepare("SELECT u.id,u.name,m.role FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.club_id=? ORDER BY u.name").bind(club).all()).results;
