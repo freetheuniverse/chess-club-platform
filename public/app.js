@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -21,23 +21,53 @@ async function refresh(){if(!state.club){state.data=null;return;}state.data=awai
 async function action(fn){try{state.notice="";await fn();await refresh();render()}catch(e){state.notice=e.message;render()}}
 function button(label,cmd,cls="btn"){return '<button type="button" class="'+cls+'" data-action="'+cmd+'">'+label+"</button>"}
 function empty(s){return '<div class="empty">'+esc(s)+"</div>"}
+function sideIcon(name){
+ const shapes={
+   overview:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+   tournaments:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v3a4 4 0 0 0 4 4m9-7h3v3a4 4 0 0 1-4 4"/>',
+   puzzles:'<path d="M8 3H4a1 1 0 0 0-1 1v4h2a2 2 0 1 1 0 4H3v8a1 1 0 0 0 1 1h5v-2a2 2 0 1 1 4 0v2h7a1 1 0 0 0 1-1v-7h-2a2 2 0 1 1 0-4h2V4a1 1 0 0 0-1-1h-7v2a2 2 0 1 1-4 0V3Z"/>',
+   members:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1"/>',
+   attendance:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18m-13 5 2 2 4-4"/>',
+   club:'<path d="M3 21V8l9-5 9 5v13M3 21h18M9 21v-7h6v7"/>',
+   join:'<path d="M9 12h12M16 7l5 5-5 5M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>'
+ };
+ return '<svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(shapes[name]||shapes.club)+'</svg>';
+}
 function shell(content){
- const nav=[["overview","Overview"],["tournaments","Tournaments"],["members","Members"],["attendance","Attendance"],["puzzles","Puzzles"]];
- const options=state.clubs.map(c=>'<option value="'+c.id+'" '+(c.id===state.club?"selected":"")+'>'+esc(c.name)+'</option>').join("");
+ const pages=[["overview","Overview"],["tournaments","Tournaments"],["puzzles","Puzzle Assignments"],["members","Members"],["attendance","Attendance"]];
+ const managed=state.clubs.filter(c=>c.role==="moderator");
+ const joined=state.clubs.filter(c=>c.role!=="moderator");
+ const pageLinks=pages.map(([key,title])=>
+   '<button type="button" class="side-link '+(state.tab===key?"active":"")+'" data-action="tab:'+key+'"'+
+   (state.tab===key?' aria-current="page"':'')+'>'+sideIcon(key)+'<span>'+title+'</span></button>'
+ ).join("");
+ const clubLinks=items=>items.map(c=>
+   '<button type="button" class="side-club '+(state.club===c.id?"active":"")+'" data-action="club:'+esc(c.id)+'" '+
+   (state.club===c.id?'aria-current="true" ':'')+'title="'+esc(c.name)+'">'+
+   '<span class="side-club-dot" aria-hidden="true"></span><span class="side-club-name">'+esc(c.name)+'</span></button>'
+ ).join("");
  return '<div class="shell"><header class="topbar"><div class="topbar-inner">'+
-  '<div class="identity"><span class="mark" aria-hidden="true">♞</span><span class="brand">Chess Club</span></div>'+
-  '<div class="header-actions">'+
-  (state.clubs.length?'<select id="clubselect" class="field compact" aria-label="Select club">'+options+'</select>':'')+
-  button("Join club","join-club","btn ghost small")+button("New club","new-club","btn ghost small")+
-  '<span class="header-user">'+esc(state.user?.name||"")+'</span>'+button("Sign out","logout","btn text")+
-  '</div></div></header>'+
-  '<nav class="tab-bar" aria-label="Club pages"><div class="tab-inner">'+
-  nav.map(([k,v])=>'<button type="button" class="nav '+(state.tab===k?"active":"")+'" data-action="tab:'+k+'"'+(state.tab===k?' aria-current="page"':'')+'>'+v+'</button>').join("")+
-  '</div></nav><main class="main" id="maincontent">'+content+'</main></div>';
+   '<div class="identity"><button type="button" class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Toggle navigation" aria-controls="sidebar-nav" aria-expanded="'+!!state.sidebarOpen+'"><span aria-hidden="true">☰</span></button>'+
+   '<span class="brand">Chess Club Manager</span></div>'+
+   '<div class="header-actions"><span class="header-user">'+esc(state.user?.name||"")+'</span>'+button("Sign out","logout","btn text")+'</div></div></header>'+
+   '<div class="app-layout">'+
+   (state.sidebarOpen?'<button type="button" class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Close navigation"></button>':'')+
+   '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
+   '<nav class="side-nav" aria-label="Sections"><div class="side-section-label">Workspace</div>'+pageLinks+'</nav>'+
+   '<div class="side-section-divider"></div>'+
+   '<div class="side-section-heading"><span class="side-section-label">Managed clubs</span>'+
+   '<button type="button" class="side-add" data-action="new-club" title="Create a new club" aria-label="Create a new club">+</button></div>'+
+   '<div class="side-club-list">'+(managed.length?clubLinks(managed):'<p class="side-empty">No clubs managed yet</p>')+'</div>'+
+   (joined.length?'<div class="side-section-divider"></div><div class="side-section-heading"><span class="side-section-label">Joined clubs</span></div>'+
+   '<div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
+   '<div class="side-footer">'+
+   '<button type="button" class="side-link side-join" data-action="join-club">'+sideIcon("join")+'<span>Join a club</span></button>'+
+   '</div></aside>'+
+   '<main class="main" id="maincontent">'+content+'</main></div></div>';
 }
 function renderHeader(){
  const name=state.data?.club?.name||"Your clubs";
- const titles={overview:"Overview",tournaments:"Tournaments",members:"Members",attendance:"Attendance",puzzles:"Puzzles"};
+ const titles={overview:"Overview",tournaments:"Tournaments",members:"Members",attendance:"Attendance",puzzles:"Puzzle Assignments"};
  return '<div class="top"><div><div class="eyebrow">'+esc(name)+'</div><h1>'+titles[state.tab]+'</h1></div>'+
   (state.data?.role==="moderator" && ["overview","tournaments"].includes(state.tab)?button("New tournament","new-tournament"):"")+
   '</div>';
@@ -163,7 +193,7 @@ function modal(){
  '<button type="submit" class="btn">'+(mode==="join-club"?"Join club":mode==="new-club"?"Create club":"Start tournament")+'</button></div></form></section></div>';
 }
 function auth(){
- return '<div class="auth"><section class="modal"><div class="identity"><span class="mark" aria-hidden="true">♞</span><span class="brand">Chess Club</span></div>'+
+ return '<div class="auth"><section class="modal"><div class="identity"><span class="brand">Chess Club Manager</span></div>'+
  '<h1 class="auth-title">Create account</h1><p class="auth-description">Register to manage or join a chess club.</p>'+
  '<form id="authform" class="form">'+
  '<label id="namefield">Your name<input name="name" class="field" placeholder="Full name" autocomplete="name" minlength="2" maxlength="100" required></label>'+
@@ -177,7 +207,7 @@ function auth(){
 function render(){
  // A chessboard uses document-level pointer handlers: release them before replacing DOM.
  if(typeof window!=="undefined")window.PuzzleModule?.destroyBoard?.();
- if(state.loading){$("app").innerHTML='<div class="auth"><section class="modal"><h2>Loading chess club…</h2></section></div>';return;}
+ if(state.loading){$("app").innerHTML='<div class="auth"><section class="modal"><h2>Loading Chess Club Manager…</h2></section></div>';return;}
  if(!state.user){
    $("app").innerHTML=auth()+(state.notice?'<div class="notice" role="alert">'+esc(state.notice)+'</div>':"");
    bindAuth();return;
@@ -229,13 +259,24 @@ function bind(){
  document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{
    const [a,id,value]=el.dataset.action.split(":");
    if(a==="tab"){
-     state.tab=id;state.tournament=null;state.tdata=null;
+     state.tab=id;state.sidebarOpen=false;state.tournament=null;state.tdata=null;
      state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;
-     if(id==="puzzles" && typeof window!=="undefined" && window.PuzzleModule){
+     if(id==="puzzles" && state.club && typeof window!=="undefined" && window.PuzzleModule){
        action(async()=>{await window.PuzzleModule.list(state,api);});
      } else render();
+   } else if(a==="toggle-sidebar"){
+     state.sidebarOpen=!state.sidebarOpen;render();
+   } else if(a==="club"){
+     if(id===state.club){
+       state.sidebarOpen=false;render();return;
+     }
+     action(async()=>{
+       state.club=id;state.sidebarOpen=false;state.tab="overview";
+       state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
+       state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;
+     });
    } else if(a==="new-club"||a==="join-club"||a==="new-tournament"){
-     state.modal=a;state.notice="";render();
+     state.modal=a;state.notice="";state.sidebarOpen=false;render();
    } else if(a==="close-modal"){
      state.modal=null;render();
    } else if(a==="copy-code"){
@@ -288,8 +329,6 @@ function bind(){
      });
    }
  });
- const select=$("clubselect");
- if(select)select.onchange=()=>action(async()=>{state.club=select.value;state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;});
  if(typeof window!=="undefined" && window.PuzzleModule && state.tab==="puzzles")window.PuzzleModule.bind({state,render,api,post,action});
  const form=$("modalform");
  if(form)form.onsubmit=e=>{
@@ -299,8 +338,8 @@ function bind(){
    const ids=[...document.querySelectorAll(".start-player:checked")].map(x=>x.value);
    action(async()=>{
      let result;
-     if(mode==="new-club"){result=await post("clubs/create",b);state.club=result.id;}
-     else if(mode==="join-club"){result=await post("clubs/join",b);state.club=result.club.id;}
+     if(mode==="new-club"){result=await post("clubs/create",b);state.club=result.id;state.tab="overview";state.sidebarOpen=false;}
+     else if(mode==="join-club"){result=await post("clubs/join",b);state.club=result.club.id;state.tab="overview";state.sidebarOpen=false;}
      else{
        result=await post("clubs/"+state.club+"/tournaments",{title:b.title,event_date:b.event_date});
        state.tournament=result.id;state.viewRound=null;state.expandedGame=null;
