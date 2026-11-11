@@ -19,7 +19,7 @@ const post=(path,data={})=>api(path,{method:"POST",body:JSON.stringify(data)});
 async function load(){try{let m=await api("auth/me");state.user=m.user;state.clubs=(await api("clubs")).clubs;if(state.club&&!state.clubs.some(c=>c.id===state.club))state.club=null;if(!state.club&&state.clubs.length)state.club=state.clubs[0].id;await refresh();}catch(e){state.user=null;}if(!state.user){try{await api("health");}catch(e){state.notice=e.message;}}state.loading=false;render()}
 async function refresh(){if(!state.club){state.data=null;return;}state.data=await api("clubs/"+state.club);if(state.tournament)try{state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament)}catch{state.tournament=null;state.tdata=null}}
 async function action(fn){try{state.notice="";await fn();await refresh();render()}catch(e){state.notice=e.message;render()}}
-function button(label,cmd,cls="btn"){return '<button class="'+cls+'" data-action="'+cmd+'">'+label+"</button>"}
+function button(label,cmd,cls="btn"){return '<button type="button" class="'+cls+'" data-action="'+cmd+'">'+label+"</button>"}
 function empty(s){return '<div class="empty">'+esc(s)+"</div>"}
 function shell(content){
  const nav=[["overview","Overview"],["tournaments","Tournaments"],["members","Members"],["attendance","Attendance"],["puzzles","Puzzles"]];
@@ -176,37 +176,136 @@ function auth(){
  '<p class="auth-footer"><span class="interactive" id="authswitch" role="button" tabindex="0">Already have an account? Sign in</span></p>'+
  '</section></div>';
 }
-function render(){if(state.loading){$("app").innerHTML='<div class="auth"><h2>Loading chess club…</h2></div>';return}if(!state.user){$("app").innerHTML=auth()+(state.notice?'<div class="notice" style="position:fixed;top:12px;right:12px">'+esc(state.notice)+'</div>':"");bindAuth();return}let content=renderHeader();if(state.notice)content+='<div class="notice">'+esc(state.notice)+'</div>';if(!state.club){content+='<div class="banner"><div><h2>Start your first chess club</h2><p>Create a club for moderators or join an existing one as a student.</p></div><div class="row">'+button("Create club","new-club")+button("Join club","join-club","btn ghost")+'</div></div>'}else if(state.tournament&&state.tdata)content+=tournamentDetail();else content+=({overview,tournaments,members,attendance,puzzles}[state.tab]||overview)();$("app").innerHTML=shell(content)+modal();bind();}
+function render(){
+ if(state.loading){$("app").innerHTML='<div class="auth"><section class="modal"><h2>Loading chess club…</h2></section></div>';return;}
+ if(!state.user){
+   $("app").innerHTML=auth()+(state.notice?'<div class="notice" role="alert">'+esc(state.notice)+'</div>':"");
+   bindAuth();return;
+ }
+ const viewingTournament=!!(state.tournament&&state.tdata);
+ let content=viewingTournament?"":renderHeader();
+ if(state.notice)content+='<div class="notice" role="alert">'+esc(state.notice)+'</div>';
+ if(!state.club){
+   content+='<section class="panel"><div class="panel-heading"><h2>Set up your chess club</h2></div>'+
+   '<div class="empty-action"><p>Create a club or join one with an invitation code.</p><div class="row">'+
+   button("Create club","new-club")+button("Join club","join-club","btn ghost")+'</div></div></section>';
+ } else if(viewingTournament) content+=tournamentDetail();
+ else content+=({overview,tournaments,members,attendance,puzzles}[state.tab]||overview)();
+ $("app").innerHTML=shell(content)+modal();
+ bind();
+}
 function bindAuth(){
  let signup=true;
- $("authswitch").onclick=()=>{
+ const nameInput=$("namefield").querySelector("input");
+ const passwordInput=$("authform").querySelector('input[name="password"]');
+ // Do not rely on hidden required fields when switching to sign-in.
+ const toggle=()=>{
    signup=!signup;
    $("namefield").style.display=signup?"":"none";
+   nameInput.required=signup;
+   passwordInput.autocomplete=signup?"new-password":"current-password";
    $("authsubmit").textContent=signup?"Create account":"Sign in";
+   const title=document.querySelector(".auth-title");if(title)title.textContent=signup?"Create account":"Sign in";
    $("authswitch").textContent=signup?"Already have an account? Sign in":"New here? Create an account";
    const errorEl=$("auth-error");errorEl.hidden=true;errorEl.textContent="";
  };
+ $("authswitch").onclick=toggle;
+ $("authswitch").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle();}};
  $("authform").onsubmit=async e=>{
    e.preventDefault();
-   const form=e.currentTarget, f=new FormData(form), button=$("authsubmit"), errorEl=$("auth-error");
-   errorEl.hidden=true;errorEl.textContent="";button.disabled=true;
-   try {
+   const form=e.currentTarget,f=new FormData(form),submit=$("authsubmit"),errorEl=$("auth-error");
+   errorEl.hidden=true;errorEl.textContent="";submit.disabled=true;
+   try{
      const result=await post("auth/"+(signup?"register":"login"),Object.fromEntries(f));
-     state.user=result.user;
-     state.clubs=(await api("clubs")).clubs;
-     state.club=state.clubs[0]?.id||null;
-     state.notice="";
-     await refresh();
-     render();
-   } catch(e) {
-     // Keep the form fields in place so a failed request doesn't erase the user's entry.
-     errorEl.textContent=e.message||"Account request failed. Please try again.";
-     errorEl.hidden=false;
-   } finally {
-     button.disabled=false;
-   }
+     state.user=result.user;state.clubs=(await api("clubs")).clubs;
+     state.club=state.clubs[0]?.id||null;state.notice="";
+     await refresh();render();
+   }catch(e){
+     errorEl.textContent=e.message||"Account request failed. Please try again.";errorEl.hidden=false;
+   }finally{submit.disabled=false;}
  };
 }
-function bind(){document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{const [a,id]=el.dataset.action.split(":");if(a==="tab"){state.tab=id;state.tournament=null;state.tdata=null;render()}else if(a==="new-club"||a==="join-club"||a==="new-tournament"){state.modal=a;render()}else if(a==="close-modal"){state.modal=null;render()}else if(a==="copy-code"){navigator.clipboard?.writeText(state.data.club.join_code).then(()=>{state.notice="Join code copied";render()})}else if(a==="logout"){action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null})}else if(a==="tournament"){action(async()=>{state.tournament=id;state.tdata=await api("clubs/"+state.club+"/tournaments/"+id)})}else if(a==="close-tournament"){state.tournament=null;state.tdata=null;render()}else if(a==="add-players"){action(async()=>{const ids=[...document.querySelectorAll(".playerpick:checked")].map(x=>x.value);await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/players",{user_ids:ids});state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament)})}else if(a==="new-round"){if(!confirm("Generate the next round of pairings?"))return;action(async()=>{await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/rounds");state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament)})}else if(a==="complete-tournament"){if(!confirm("Mark this tournament as completed? Results will become read-only."))return;action(async()=>{await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/complete");state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament)})}});
-const select=$("clubselect");if(select)select.onchange=()=>action(async()=>{state.club=select.value;state.tournament=null;state.tdata=null});document.querySelectorAll("[data-game]").forEach(el=>el.onchange=()=>{if(!el.value)return;action(async()=>{await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/games/"+el.dataset.game,{result:el.value});state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament)})});const form=$("modalform");if(form)form.onsubmit=e=>{e.preventDefault();const b=Object.fromEntries(new FormData(form));const mode=state.modal;action(async()=>{let result;if(mode==="new-club"){result=await post("clubs/create",b);state.club=result.id}else if(mode==="join-club"){result=await post("clubs/join",b);state.club=result.club.id}else{result=await post("clubs/"+state.club+"/tournaments",b);state.tournament=result.id;state.tdata=await api("clubs/"+state.club+"/tournaments/"+result.id)}state.clubs=(await api("clubs")).clubs;state.modal=null})}}
+function bind(){
+ document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{
+   const [a,id,value]=el.dataset.action.split(":");
+   if(a==="tab"){
+     state.tab=id;state.tournament=null;state.tdata=null;
+     state.viewRound=null;state.expandedGame=null;render();
+   } else if(a==="new-club"||a==="join-club"||a==="new-tournament"){
+     state.modal=a;state.notice="";render();
+   } else if(a==="close-modal"){
+     state.modal=null;render();
+   } else if(a==="copy-code"){
+     navigator.clipboard?.writeText(state.data.club.join_code).then(()=>{state.notice="Join code copied.";render()});
+   } else if(a==="logout"){
+     action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;});
+   } else if(a==="tournament"){
+     action(async()=>{
+       state.tournament=id;state.viewRound=null;state.expandedGame=null;
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+id);
+     });
+   } else if(a==="close-tournament"){
+     state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;render();
+   } else if(a==="round"){
+     const count=state.tdata?.rounds.length||0;
+     const current=state.viewRound||count;
+     state.viewRound=Math.max(1,Math.min(count,current+Number(id)));
+     state.expandedGame=null;render();
+   } else if(a==="result-toggle"){
+     state.expandedGame=state.expandedGame===id?null:id;render();
+   } else if(a==="result"){
+     action(async()=>{
+       await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/games/"+id,{result:value});
+       state.expandedGame=null;
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   } else if(a==="select-all"||a==="select-none"){
+     document.querySelectorAll(".playerpick").forEach(x=>x.checked=a==="select-all");
+   } else if(a==="select-all-start"||a==="select-none-start"){
+     document.querySelectorAll(".start-player").forEach(x=>x.checked=a==="select-all-start");
+   } else if(a==="add-players"){
+     action(async()=>{
+       const ids=[...document.querySelectorAll(".playerpick:checked")].map(x=>x.value);
+       if(!ids.length)throw Error("Select at least one player.");
+       await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/players",{user_ids:ids});
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   } else if(a==="new-round"){
+     if(!confirm("Generate the next round of pairings?"))return;
+     action(async()=>{
+       await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/rounds");
+       state.viewRound=null;state.expandedGame=null;
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   } else if(a==="complete-tournament"){
+     if(!confirm("Finish this tournament? Results will become read-only."))return;
+     action(async()=>{
+       await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/complete");
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   }
+ });
+ const select=$("clubselect");
+ if(select)select.onchange=()=>action(async()=>{state.club=select.value;state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;});
+ const form=$("modalform");
+ if(form)form.onsubmit=e=>{
+   e.preventDefault();
+   const b=Object.fromEntries(new FormData(form));
+   const mode=state.modal;
+   const ids=[...document.querySelectorAll(".start-player:checked")].map(x=>x.value);
+   action(async()=>{
+     let result;
+     if(mode==="new-club"){result=await post("clubs/create",b);state.club=result.id;}
+     else if(mode==="join-club"){result=await post("clubs/join",b);state.club=result.club.id;}
+     else{
+       result=await post("clubs/"+state.club+"/tournaments",{title:b.title,event_date:b.event_date});
+       state.tournament=result.id;state.viewRound=null;state.expandedGame=null;
+       if(ids.length)await post("clubs/"+state.club+"/tournaments/"+result.id+"/players",{user_ids:ids});
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+result.id);
+     }
+     state.clubs=(await api("clubs")).clubs;state.modal=null;
+   });
+ };
+}
+
 render();load();
