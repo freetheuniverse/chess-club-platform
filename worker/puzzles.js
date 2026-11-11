@@ -174,6 +174,12 @@ export async function handlePuzzleRequest({db,club,user,role,path,method,req}){
     return fail("Puzzle endpoint not found.",404);
   }catch(e){
     console.error("Puzzle API error",e);
+    if(/no such table|no such column/i.test(String(e?.message||""))){
+      return fail("The online puzzle database needs its migration. Run npm run db:migrate:cloud once from your project folder.",503);
+    }
     return fail("Could not complete puzzle request. Check Worker logs.",500);
   }
 }
+
+// Exposed for offline validation of imported Lichess puzzle positions.
+export { createStartFen, sanitizedPuzzle };
