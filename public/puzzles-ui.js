@@ -16,7 +16,11 @@ async function open(state,api,id){
 function boardPosition(item){
  if(!window.ChessEngine)throw Error("Chessboard is not loaded. Refresh this page.");
  const game=new window.ChessEngine(item.start_fen);
- for(const uci of item.played)game.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||"q"});
+ for(const uci of item.played){
+   const move={from:uci.slice(0,2),to:uci.slice(2,4)};
+   if(uci.length===5)move.promotion=uci[4];
+   game.move(move);
+ }
  return game;
 }
 function boardHtml(item,state){
@@ -139,7 +143,7 @@ function bind({state,render,api,post,action}){
    if(p&&p.color===game.turn()){state.puzzleSquare=target;render();return;}
    let mv;
    const moving=game.get(from);
-   let promotion="q";
+   let promotion=null;
    if(moving?.type==="p" && (target.endsWith("1") || target.endsWith("8"))){
      const answer=window.prompt("Promote to: q (queen), r (rook), b (bishop), n (knight)","q");
      if(answer===null){render();return;}
@@ -148,7 +152,9 @@ function bind({state,render,api,post,action}){
        state.puzzleFeedback="Choose q, r, b, or n for promotion.";render();return;
      }
    }
-   try{mv=game.move({from,to:target,promotion});}catch{}
+   const move={from,to:target};
+   if(promotion)move.promotion=promotion;
+   try{mv=game.move(move);}catch{}
    if(!mv){state.puzzleFeedback="That is not a legal move.";render();return;}
    state.puzzleMoving=true;
    try{
