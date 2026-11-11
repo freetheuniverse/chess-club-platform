@@ -64,16 +64,18 @@ test("board mounts, reports moves to the server and releases DOM listeners",asyn
 });
 
 test("adapter uses the official Lichess Chessground board and legal-move map",()=>{
-  assert.match(adapterSource,/from "@lichess-org\\/chessground"/);
-  assert.match(adapterSource,/export function legalDestinations/);
-  assert.match(adapterSource,/Chessground\\(element,/);
-  assert.match(adapterSource,/game\\.moves\\(\\{verbose:true\\}\\)/);
-  assert.match(adapterSource,/dests:/);
-  assert.match(adapterSource,/movable:/);
-  assert.match(adapterSource,/events:\\{after:/);
-  assert.match(adapterSource,/onMove\\(uci\\)/);
-  assert.match(adapterSource,/board\\.toggleOrientation\\(\\)/);
-  assert.match(adapterSource,/board\\.destroy\\(\\)/);
+  for(const expected of [
+    'from "@lichess-org/chessground"',
+    'export function legalDestinations',
+    'Chessground(element,',
+    'game.moves({verbose:true})',
+    'dests:',
+    'movable:',
+    'events:{after:',
+    'onMove(uci)',
+    'board.toggleOrientation()',
+    'board.destroy()'
+  ]) assert.ok(adapterSource.includes(expected),"Adapter missing: "+expected);
 });
 
 function mountAdapter({result,solved=false}={}){
