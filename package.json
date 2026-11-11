@@ -11,13 +11,14 @@
     "check": "node --check worker/index.js && node --check worker/puzzles.js && node --check public/app.js && node --check public/puzzles-ui.js && node --test tests/*.test.mjs",
     "deploy:cloud": "npm run build:client && wrangler deploy --config wrangler.cloud.jsonc",
     "db:migrate:cloud": "wrangler d1 migrations apply chess-club-db --remote --config wrangler.cloud.jsonc",
-    "build:client": "esbuild public/puzzle-chess-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-chess.js"
+    "build:client": "esbuild public/puzzle-chess-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-chess.js && esbuild public/puzzle-board-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-board.js"
   },
   "devDependencies": {
     "wrangler": "^4.0.0",
     "esbuild": "^0.25.0"
   },
   "dependencies": {
-    "chess.js": "^1.4.0"
+    "chess.js": "^1.4.0",
+    "@mirasen/chessboard": "^1.5.1"
   }
 }
