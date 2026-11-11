@@ -1,4 +1,6 @@
 (() => {
+let liveBoard=null;
+function destroyBoard(){if(liveBoard){liveBoard.destroy();liveBoard=null;}}
 const THEME_OPTIONS=[["mix","Mixed tactics"],["fork","Forks"],["pin","Pins"],["skewer","Skewers"],["discoveredAttack","Discovered attacks"],["mateIn1","Mate in one"],["mateIn2","Mate in two"],["mateIn3","Mate in three"],["endgame","Endgames"],["opening","Openings"],["middlegame","Middlegames"],["hangingPiece","Hanging pieces"],["defensiveMove","Defensive moves"],["promotion","Promotion"],["sacrifice","Sacrifices"],["backRankMate","Back-rank mate"]];
 const DIFFICULTIES=[["easiest","Very easy"],["easier","Easy"],["normal","Normal"],["harder","Hard"],["hardest","Very hard"]];
 const symbols={w:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},b:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}};
@@ -24,18 +26,11 @@ function boardPosition(item){
  return game;
 }
 function boardHtml(item,state){
- let game;try{game=boardPosition(item);}catch(e){return '<p class="notice">'+escape(e.message)+'</p>';}
- const flip=item.start_fen.split(" ")[1]==="b";
- const files=flip?"hgfedcba":"abcdefgh",ranks=flip?"12345678":"87654321";
- const squares=[];
- for(const rank of ranks)for(const file of files){
-   const square=file+rank,piece=game.get(square),dark=((file.charCodeAt(0)-97+Number(rank))%2===1);
-   const selected=state.puzzleSquare===square;
-   const pieceHtml=piece?'<span class="chess-piece '+(piece.color==="w"?"white-piece":"black-piece")+'">'+symbols[piece.color][piece.type]+'</span>':"";
-   squares.push('<button type="button" aria-label="'+square+(piece?" "+piece.color+" "+piece.type:"")+'" class="chess-square '+(dark?"dark":"light")+(selected?" selected":"")+'" data-puzzle-square="'+square+'" '+(item.solved?'disabled':'')+'>'+pieceHtml+'</button>');
- }
- return '<div class="chess-board" role="group" aria-label="Chess puzzle board">'+squares.join("")+'</div>';
+ // The board library owns squares, pointer dragging, click moves, highlights and animations.
+ // Keep the host stable until a puzzle selection or navigation changes the page.
+ return '<div class="chess-board-host" id="puzzle-board-host" role="group" aria-label="Interactive chess puzzle board"></div>';
 }
+
 function listing(state){
  const arr=state.puzzleAssignments||[];
  const canManage=state.data?.role==="moderator";
@@ -74,17 +69,17 @@ function detail(state){
  if(!d)return '<div class="panel"><div class="empty">Loading assignment…</div></div>';
  const items=d.items||[],item=items[state.puzzleIndex]||items[0];
  const count=items.filter(p=>p.solved).length;
- const left='<section class="panel"><div class="panel-heading"><h2>Puzzle list</h2><span class="muted">'+count+" of "+items.length+' solved</span></div>'+
+ const left='<section class="panel"><div class="panel-heading"><h2>Puzzle list</h2><span id="puzzle-solved-counter" class="muted">'+count+" of "+items.length+' solved</span></div>'+
  '<div class="puzzle-items">'+items.map((p,i)=>'<button type="button" class="puzzle-item '+(state.puzzleIndex===i?"current":"")+'" data-puzzle-action="select:'+i+'">'+
- '<span>Question '+(i+1)+'</span><span class="muted">'+p.rating+' · '+(p.solved?"Solved":p.mistakes?"In progress":"Not started")+'</span></button>').join("")+'</div>'+
+ '<span>Question '+(i+1)+'</span><span class="muted" data-puzzle-progress="'+i+'">'+p.rating+' · '+(p.solved?"Solved":p.mistakes?"In progress":"Not started")+'</span></button>').join("")+'</div>'+
  '<div class="panel-body"><p class="panel-note">Source: Lichess puzzles. Moves are checked by the club website.</p></div></section>';
  const board=item?'<section class="panel"><div class="panel-heading"><div><h2>Puzzle '+(state.puzzleIndex+1)+'</h2><p class="muted">'+escape(item.themes?.slice(0,3).map(pretty).join(" · "))+' · rating '+item.rating+'</p></div>'+
- '<span class="pill '+(item.solved?"active":"")+'">'+(item.solved?"Solved":"In progress")+'</span></div><div class="puzzle-solving">'+
+ '<span id="puzzle-state-chip" class="pill '+(item.solved?"active":"")+'">'+(item.solved?"Solved":"In progress")+'</span></div><div class="puzzle-solving">'+
  boardHtml(item,state)+'<div class="puzzle-instructions"><strong>'+(item.solved?"Completed":"Find the best move")+'</strong>'+
- '<p class="muted">'+(item.solved?"Good work. Select another puzzle from the list.":"Click a piece, then click the destination square. The opponent replies automatically when you find the correct move.")+'</p>'+
+ '<p class="muted">Drag pieces or select a piece and its destination. Legal moves are highlighted. Correct moves trigger the opponent’s reply.</p>'+
  '<div id="puzzle-feedback" class="puzzle-feedback" role="status">'+escape(state.puzzleFeedback||"")+'</div>'+
- '<p class="muted">Mistakes: '+item.mistakes+'</p>'+
- '<div class="row" style="margin-top:12px">'+(state.puzzleIndex>0?btn("Previous","select:"+(state.puzzleIndex-1)):"")+
+ '<p class="muted" id="puzzle-mistake-count">Mistakes: '+item.mistakes+'</p>'+
+ '<div class="row" style="margin-top:12px">'+btn("Flip board","flip","btn ghost small")+(state.puzzleIndex>0?btn("Previous","select:"+(state.puzzleIndex-1)):"")+
  (state.puzzleIndex<items.length-1?btn("Next puzzle","select:"+(state.puzzleIndex+1),"btn"):"")+'</div>'+
  '</div></div></section>':"";
  const report=Array.isArray(d.summary)?'<section class="panel"><div class="panel-heading"><h2>Member progress</h2><span class="muted">'+d.summary.length+' members</span></div>'+
@@ -102,12 +97,26 @@ function page(state){
  if(state.activeAssignment)return detail(state);
  return listing(state);
 }
+function updatePuzzleFeedback(state,item){
+ const feedback=document.getElementById("puzzle-feedback");
+ if(feedback)feedback.textContent=state.puzzleFeedback||"";
+ const mistakes=document.getElementById("puzzle-mistake-count");
+ if(mistakes)mistakes.textContent="Mistakes: "+(item.mistakes||0);
+ const chip=document.getElementById("puzzle-state-chip");
+ if(chip){chip.textContent=item.solved?"Solved":"In progress";chip.className="pill "+(item.solved?"active":"");}
+ const indicator=document.querySelector('[data-puzzle-progress="'+state.puzzleIndex+'"]');
+ if(indicator)indicator.textContent=item.rating+" · "+(item.solved?"Solved":item.mistakes?"In progress":"Not started");
+ const counter=document.getElementById("puzzle-solved-counter");
+ if(counter && state.assignmentData)counter.textContent=state.assignmentData.items.filter(i=>i.solved).length+" of "+state.assignmentData.items.length+" solved";
+}
+
 function bind({state,render,api,post,action}){
  document.querySelectorAll("[data-puzzle-action]").forEach(el=>el.onclick=()=>{
    const [cmd,val]=el.dataset.puzzleAction.split(":");
    if(cmd==="new-assignment"){state.showAssignmentForm=true;render();}
    if(cmd==="cancel-assignment"){state.showAssignmentForm=false;render();}
    if(cmd==="members-all"||cmd==="members-none")document.querySelectorAll(".puzzle-member").forEach(x=>x.checked=cmd==="members-all");
+   if(cmd==="flip")liveBoard?.flip();
    if(cmd==="back"){state.activeAssignment=null;state.assignmentData=null;state.puzzleFeedback="";render();}
    if(cmd==="select"){state.puzzleIndex=Number(val);state.puzzleSquare=null;state.puzzleFeedback="";render();}
    if(cmd==="open"){action(async()=>{await open(state,api,val)});}
@@ -127,45 +136,30 @@ function bind({state,render,api,post,action}){
      render();
    }catch(e){error.textContent=e.message;error.hidden=false;}finally{submit.disabled=false;}
  };
- document.querySelectorAll("[data-puzzle-square]").forEach(square=>square.onclick=async()=>{
-   const item=state.assignmentData?.items[state.puzzleIndex];
-   if(!item||item.solved||!state.assignmentData.canSolve||state.puzzleMoving)return;
-   let game;try{game=boardPosition(item);}catch(e){state.puzzleFeedback=e.message;render();return;}
-   const target=square.dataset.puzzleSquare;
-   if(!state.puzzleSquare){
-     const p=game.get(target);
-     if(!p||p.color!==game.turn())return;
-     state.puzzleSquare=target;render();return;
-   }
-   const from=state.puzzleSquare;state.puzzleSquare=null;
-   if(from===target){render();return;}
-   const p=game.get(target);
-   if(p&&p.color===game.turn()){state.puzzleSquare=target;render();return;}
-   let mv;
-   const moving=game.get(from);
-   let promotion=null;
-   if(moving?.type==="p" && (target.endsWith("1") || target.endsWith("8"))){
-     const answer=window.prompt("Promote to: q (queen), r (rook), b (bishop), n (knight)","q");
-     if(answer===null){render();return;}
-     promotion=String(answer).trim().toLowerCase();
-     if(!["q","r","b","n"].includes(promotion)){
-       state.puzzleFeedback="Choose q, r, b, or n for promotion.";render();return;
-     }
-   }
-   const move={from,to:target};
-   if(promotion)move.promotion=promotion;
-   try{mv=game.move(move);}catch{}
-   if(!mv){state.puzzleFeedback="That is not a legal move.";render();return;}
-   state.puzzleMoving=true;
+
+ const host=document.getElementById("puzzle-board-host");
+ if(host && state.assignmentData?.canSolve){
+   const item=state.assignmentData.items[state.puzzleIndex];
    try{
-     const uci=mv.from+mv.to+(mv.promotion||"");
-     const reply=await post("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/items/"+item.id,{move:uci});
-     item.played=reply.played;item.solved=reply.solved;item.mistakes=reply.mistakes;
-     state.puzzleFeedback=reply.correct?(reply.solved?"Correct — puzzle solved.":"Correct. Find the next move."):"Not the best move. Try again.";
-     render();
-   }catch(e){state.puzzleFeedback=e.message;render();}
-   finally{state.puzzleMoving=false;}
- });
+     if(!window.PuzzleBoardFactory)throw Error("Chessboard component failed to load. Please refresh.");
+     liveBoard=window.PuzzleBoardFactory.create({
+       element:host,item,interactive:!item.solved,
+       onMove:async uci=>{
+         const result=await post("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/items/"+item.id,{move:uci});
+         item.played=result.played;
+         item.solved=result.solved;
+         item.mistakes=result.mistakes;
+         state.puzzleFeedback=result.correct?(result.solved?"Correct — puzzle solved.":"Correct. Find the next move."):"Not the best move. Try again.";
+         updatePuzzleFeedback(state,item);
+         return result;
+       },
+       onError:message=>{state.puzzleFeedback=message;updatePuzzleFeedback(state,item);}
+     });
+   }catch(err){
+     host.textContent="Could not load chessboard: "+(err?.message||err);
+   }
+ }
+
 }
-window.PuzzleModule={page,list,open,bind};
+window.PuzzleModule={page,list,open,bind,destroyBoard};
 })();
