@@ -125,7 +125,8 @@ export default {
         // Safe public check: confirms the schema exists without exposing user data.
         await db.prepare("SELECT id FROM users LIMIT 1").first();
         await db.prepare("SELECT token_hash FROM sessions LIMIT 1").first();
-        return json({ status:"ready", database:"ready" });
+        const puzzleTable=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='puzzle_assignments'").first();
+        return json({status:"ready",database:"ready",puzzles:puzzleTable?"ready":"migration_required"});
       }
       if (path[1]==="auth" && path[2]==="register" && method==="POST") {
         const b=await body(req), name=String(b.name||"").trim(), email=String(b.email||"").trim().toLowerCase(), password=String(b.password||"");
