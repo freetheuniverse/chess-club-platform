@@ -153,11 +153,13 @@ This repository is public and contains its own GPL license. The website links to
 
 This dependency replaces the earlier MIT board. Cloudflare's current build image runs Node 24; local development should also use Node 24 or newer.
 
-## Visual design
+## Visual design and navigation
 
-The development website uses the layout conventions of the original SHJC Chess Tournament Manager (reference: `aflores-counsellor/SHJC-Chess-Tournament-Manager`): a slim top bar, horizontal section tabs, flat white panels, restrained dark-green accents, square-ish corners, small text and controls, and minimal nonessential copy. Tournament detail is organized into **player roster (left)**, **round pairings (right)** and **standings (below)**. Each match has a centered `VS` control that reveals White wins / Draw / Black wins, and previous rounds can be viewed using arrows beside the round title. This is a visual and interaction adaptation, not a replacement of the existing Cloudflare/D1 application architecture.
+The current website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. The sidebar links to Overview, Tournaments, **Puzzle Assignments**, Members, and Attendance. "Puzzle Assignments" is the destination; **Assign puzzles** is the moderator's creation action.
 
-The current Cloudflare backend locks rosters once a tournament's rounds start; mid-tournament add/remove/restore from the Apps Script tool is a separate future feature. The new club member directory requires accounts, rather than the original manually saved guest-player names. UI smoke tests run as part of `npm run check`.
+Clubs are displayed in two groups based on the signed-in account's membership role: **Managed clubs** (moderator access) and **Joined clubs**. A plus button beside Managed clubs creates a new club; a Join a club action remains available. Selecting a club clears tournament and puzzle state from the previous club and opens the new club's overview. On small screens the sidebar becomes a toggleable drawer.
+
+Tournament detail preserves the SHJC pairing layout: player roster on the left, round pairings on the right, and standings underneath. Each match has a centered VS control for entering White wins / Draw / Black wins. The browser-only navigation changes do not alter Cloudflare Worker authorization or the D1 database schema. UI smoke tests cover the sidebar and club switching.
 
 ## Design and data rules
 
