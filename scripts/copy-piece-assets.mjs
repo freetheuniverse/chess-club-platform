@@ -1,4 +1,4 @@
-import {cpSync,existsSync,mkdirSync} from "node:fs";
+import {cpSync,copyFileSync,existsSync,mkdirSync} from "node:fs";
 import {join} from "node:path";
 
 const source=join(process.cwd(),"node_modules","@mirasen","chessboard","assets","pieces","chessnut");
@@ -9,4 +9,10 @@ if(!existsSync(source)){
 }
 mkdirSync(destination,{recursive:true});
 cpSync(source,destination,{recursive:true});
-console.log("Copied MIT-board Chessnut SVG assets and attribution into public/assets/pieces/chessnut");
+const legal=join(process.cwd(),"public","assets","licenses");
+mkdirSync(legal,{recursive:true});
+copyFileSync(
+  join(process.cwd(),"node_modules","@mirasen","chessboard","LICENSE"),
+  join(legal,"Mirasen-Chessboard-MIT-LICENSE.txt")
+);
+console.log("Copied chess SVG assets plus their required MIT and Apache license notices.");
