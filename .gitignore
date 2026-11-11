@@ -5,3 +5,4 @@ node_modules/
 .DS_Store
 public/puzzle-chess.js
 public/puzzle-board.js
+public/assets/pieces/chessnut/
