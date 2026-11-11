@@ -47,14 +47,18 @@ function startApp(){
  return {get,app:context.__testApp,data,members,handlers};
 }
 
-test("Chess Club Manager shows a dark sidebar and club groups instead of a dropdown",async()=>{
+test("Chess Club Manager presents clubs above the selected club workspace",async()=>{
  const {get,app}=startApp();await app.load();
  const html=get("app").innerHTML;
  assert.match(html,/Chess Club Manager/);
  assert.match(html,/class="sidebar /);
  assert.match(html,/Puzzle Assignments/);
- assert.match(html,/Managed clubs/);
- assert.match(html,/Joined clubs/);
+ assert.match(html,/Your clubs/);
+ assert.match(html,/side-group-label">Managed/);
+ assert.match(html,/side-group-label">Joined/);
+ assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
+ assert.ok(html.indexOf("Club workspace") < html.indexOf("Puzzle Assignments"),"Workspace links should follow the selected club");
+ assert.match(html,/side-workspace-club" title="School Chess Club">School Chess Club/);
  assert.match(html,/School Chess Club/);
  assert.match(html,/Community Chess/);
  assert.match(html,/aria-label="Create a new club"/);
@@ -100,8 +104,8 @@ test("switching clubs from the sidebar resets old club context and loads the sel
  assert.equal(app.state.activeAssignment,null);
  assert.equal(app.state.data.club.name,"Community Chess");
  const html=get("app").innerHTML;
- assert.match(html,/Joined clubs/);
- assert.match(html,/Community Chess/);
+ assert.match(html,/side-group-label">Joined/);
+ assert.match(html,/side-workspace-club" title="Community Chess">Community Chess/);
  assert.doesNotMatch(html,/clubselect/);
 });
 
@@ -113,4 +117,19 @@ test("mobile sidebar toggle updates the aria-expanded state and opens the drawer
  assert.match(html,/sidebar is-open/);
  assert.match(html,/aria-expanded="true"/);
  assert.match(html,/sidebar-scrim/);
+});
+
+test("no club selected hides club-specific workspace navigation",async()=>{
+ const {get,app}=startApp();
+ await app.load();
+ app.state.clubs=[];
+ app.state.club=null;
+ app.state.data=null;
+ app.render();
+ const html=get("app").innerHTML;
+ assert.match(html,/Your clubs/);
+ assert.match(html,/Create a new club/);
+ assert.match(html,/Choose a club above to open its workspace/);
+ assert.doesNotMatch(html,/data-action="tab:members"/);
+ assert.doesNotMatch(html,/data-action="tab:puzzles"/);
 });
