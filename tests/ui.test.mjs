@@ -17,7 +17,7 @@ function startApp(){
  const routes={
    "/api/auth/me":{user},
    "/api/clubs":{clubs:[{id:club.id,name:club.name,role:"moderator"}]},
-   "/api/clubs/"+club.id:data
+   ["/api/clubs/"+club.id]:data
  };
  const fetch=async path=>{
    const response=routes[path];
