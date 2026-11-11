@@ -63,10 +63,78 @@ test("board mounts, reports moves to the server and releases DOM listeners",asyn
   assert.equal(h.calls.destroyed,1);
 });
 
-test("board source continues to enforce legal chess.js moves and server verification",()=>{
-  assert.match(adapterSource,/mode:"strict"/);
-  assert.match(adapterSource,/toBoardMoveDestinations/);
-  assert.match(adapterSource,/onMove\(uci\)/);
-  assert.match(adapterSource,/board\.move\(toBoardMove\(reply\)\)/);
-  assert.match(adapterSource,/board\.destroy\(\)/);
+test("adapter uses the official Lichess Chessground board and legal-move map",()=>{
+  assert.match(adapterSource,/from "@lichess-org\\/chessground"/);
+  assert.match(adapterSource,/export function legalDestinations/);
+  assert.match(adapterSource,/Chessground\\(element,/);
+  assert.match(adapterSource,/game\\.moves\\(\\{verbose:true\\}\\)/);
+  assert.match(adapterSource,/dests:/);
+  assert.match(adapterSource,/movable:/);
+  assert.match(adapterSource,/events:\\{after:/);
+  assert.match(adapterSource,/onMove\\(uci\\)/);
+  assert.match(adapterSource,/board\\.toggleOrientation\\(\\)/);
+  assert.match(adapterSource,/board\\.destroy\\(\\)/);
+});
+
+function mountAdapter({result,solved=false}={}){
+  const creates=[],updates=[],errors=[],submitted=[];
+  let destroyed=0,flipped=0;
+  const Chessground=(element,config)=>{
+    creates.push(config);
+    return {
+      set:c=>updates.push(c),
+      toggleOrientation:()=>flipped++,
+      destroy:()=>destroyed++
+    };
+  };
+  const window={prompt:()=>"q"};
+  const context=vm.createContext({Chessground,Chess,window,console});
+  const js=adapterSource
+    .replace(/^import .*;$/gm,"")
+    .replace("export function legalDestinations","function legalDestinations")
+    .replace("export {create};","");
+  vm.runInContext(js,context);
+  const fen="4k3/8/8/4n3/8/8/8/4K3 b - - 0 1";
+  const item={start_fen:fen,played:[],solved,mistakes:0};
+  const board=window.PuzzleBoardFactory.create({
+    element:{},item,interactive:!solved,
+    onMove:async uci=>{
+      submitted.push(uci);
+      return result || {correct:true,played:["e5d3"],solved:true,mistakes:0};
+    },
+    onError:message=>errors.push(message)
+  });
+  return {board,item,fen,creates,updates,errors,submitted,
+    get destroyed(){return destroyed;},
+    get flipped(){return flipped;}
+  };
+}
+
+test("Chessground forwards a legal knight move and disables solved puzzles",async()=>{
+  const h=mountAdapter();
+  assert.equal(h.creates[0].orientation,"black");
+  assert.equal(h.creates[0].movable.color,"black");
+  assert.ok(h.creates[0].movable.dests.get("e5").includes("d3"));
+  h.creates[0].movable.events.after("e5","d3");
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(h.submitted,["e5d3"]);
+  assert.equal(h.item.solved,true);
+  assert.equal(h.updates.at(-1).movable.color,undefined);
+  h.board.flip();assert.equal(h.flipped,1);
+  h.board.destroy();assert.equal(h.destroyed,1);
+});
+
+test("incorrect puzzle moves return the board to its confirmed FEN",async()=>{
+  const h=mountAdapter({result:{correct:false,played:[],solved:false,mistakes:1}});
+  h.creates[0].movable.events.after("e5","d3");
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.updates.at(-1).fen,h.fen);
+  assert.equal(h.item.solved,false);
+  assert.equal(h.item.mistakes,1);
+});
+
+test("completed puzzles are read-only on Chessground",()=>{
+  const h=mountAdapter({solved:true});
+  assert.equal(h.creates[0].movable.color,undefined);
+  assert.equal(h.creates[0].movable.dests.size,0);
 });
