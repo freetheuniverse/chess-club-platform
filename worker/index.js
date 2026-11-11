@@ -78,6 +78,12 @@ export default {
     }
     const db=env.DB;
     try {
+      if (path[1]==="health" && method==="GET") {
+        // Safe public check: confirms the schema exists without exposing user data.
+        await db.prepare("SELECT id FROM users LIMIT 1").first();
+        await db.prepare("SELECT token_hash FROM sessions LIMIT 1").first();
+        return json({ status:"ready", database:"ready" });
+      }
       if (path[1]==="auth" && path[2]==="register" && method==="POST") {
         const b=await body(req), name=String(b.name||"").trim(), email=String(b.email||"").trim().toLowerCase(), password=String(b.password||"");
         if(name.length<2 || name.length>100 || !/^\S+@\S+\.\S+$/.test(email) || password.length<10 || password.length>200) return error("Enter a name, valid email and password of at least 10 characters.");
@@ -206,8 +212,14 @@ export default {
       }
       return error("Endpoint not found",404);
     } catch(e) {
-      console.error(e);
-      return error("Request could not be completed",500);
+      console.error("Chess Club API error", e);
+      // A successful deployment does not create D1 tables. Remote migrations
+      // are a separate one-time operation and do not affect the local DB.
+      const message=String(e?.message||"");
+      if (/no such table|D1_ERROR.*no such table/i.test(message)) {
+        return error("The online database is not initialized. Run 'npm run db:migrate:cloud' in your project folder, then try again.",503);
+      }
+      return error("Server error. Check Cloudflare Workers Logs for the failed request.",500);
     }
   }
 };
