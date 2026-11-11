@@ -11,7 +11,12 @@ const isDate = value => value==null || value==="" || (typeof value==="string" &&
 const encodeMove = move => move.from + move.to + (move.promotion||"");
 function applyUci(chess,move) {
   if(!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))throw Error("Invalid UCI chess move");
-  return chess.move({from:move.slice(0,2),to:move.slice(2,4),promotion:move[4]||"q"});
+  const args={from:move.slice(0,2),to:move.slice(2,4)};
+  // Lichess UCI carries a promotion piece only for pawn promotions.
+  // Passing promotion:"q" for ordinary moves causes chess.js to reject
+  // otherwise legal knight/bishop/rook/king/pawn moves.
+  if(move.length===5)args.promotion=move[4];
+  return chess.move(args);
 }
 function createStartFen(item){
   const p=item?.puzzle;
