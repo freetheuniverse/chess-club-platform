@@ -4,7 +4,7 @@ A standalone, mobile-friendly chess club management website, independent of the 
 
 ## Current development status
 
-Working application code is on the **`dev` branch**. It is an early MVP and has not yet been deployed or browser-tested against a real D1 database.
+Working application code is on the **`dev` branch**. It is an early MVP and has been tested locally; remote Cloudflare deployment still requires the one-time Git connection and remote migration.
 
 ### Included in this MVP
 - Moderator and student accounts (email + password, server-side session cookies)
@@ -45,18 +45,42 @@ npm run dev
 
 Open the localhost URL Wrangler prints. Register, create a club, and add student accounts using a club join code. Moderators can then create tournaments and enroll members.
 
-## Cloudflare deployment
+## Automatic Cloudflare deployment from GitHub (development)
 
-When ready to deploy:
+This project has two Wrangler configurations:
+
+- `wrangler.jsonc`: local development. Keep your personal local database settings; do not commit credentials.
+- `wrangler.cloud.jsonc`: **Cloudflare Git deployment** using the project's already-created remote D1 database. This file is safe to commit because a D1 database ID is not an API credential. Never put API keys or tokens in either file.
+
+### One-time database preparation
+
+On your Windows computer in this repository, run:
 
 ```bash
-npm run db:migrate:remote
-npm run deploy
+git pull origin dev
+npm run db:migrate:cloud
 ```
 
-Cloudflare will provide a `workers.dev` URL. The frontend static assets and JSON API are deployed together via Workers Static Assets. Database information is stored in D1.
+Confirm the migration if prompted. This applies schema `0001_initial.sql` to the **remote** Cloudflare D1 database, not the local test copy. Local and remote databases store different data.
 
-**Important:** Do not deploy with the placeholder D1 database ID. Test the registration, tournament and attendance workflows in a development environment before inviting students. Cloudflare free plan quotas and product terms can change; check current limits in the dashboard.
+### Connect GitHub to Cloudflare
+
+1. Open [Cloudflare Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages), select **Create application**, then **GitHub** (Workers Git integration). Authorize the `freetheuniverse` GitHub account if requested.
+2. Grant Cloudflare access to the private repo `freetheuniverse/chess-club-platform` and select it.
+3. Ensure the **Worker name** is exactly `chess-club-platform` (it matches the Wrangler `name`). Use the **`dev`** branch as the **production branch for this development Worker**, NOT `main`.
+4. Use the **repository root** as root directory. Set **Build command** to `npm run check` and **Deploy command** to `npm run deploy:cloud`. No Cloudflare API token needs to be pasted into ChatGPT; Workers Builds can provision its own build token.
+5. Select **Save and Deploy**. Confirm a successful build in the Cloudflare dashboard and open the generated `workers.dev` URL. Do not guess a URL.
+6. If Cloudflare initially selects `main`, change it under your Worker **Settings > Builds > Branch control** to `dev` before relying on auto-deploys. Disable other branch builds for now to keep the testing environment predictable.
+
+After this one-time setup, **each Git push to the `dev` branch triggers a fresh Cloudflare build and deployment**, without running `git pull` or `npm run dev` on Windows.
+
+For a one-time manual cloud deploy from your computer instead, use `npm run deploy:cloud` (requires Wrangler login).
+
+### Safety notes
+
+The online address is publicly reachable; use test data only until authentication safeguards, email verification, password recovery, rate limiting, and club moderation are finished. Cloudflare Workers Free has a short per-request CPU-time allowance; check login and registration on your real Worker since cryptographic password derivation may exceed that limit. A future student-facing production site must use its own Worker and database, separate from this dev environment.
+
+**Do not** connect the `main` branch of this repository directly to this test Worker or reuse the testing database for live student data.
 
 ## Design and data rules
 
