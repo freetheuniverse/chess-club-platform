@@ -145,6 +145,14 @@ The API returns the starting board position, not the solution. Correctness is ve
 
 Official sources: https://lichess-org.github.io/api/ and https://database.lichess.org/ .
 
+## Animated puzzle chessboard
+
+The Chess Club puzzle page uses [Mirasen Chessboard](https://github.com/mirasen-io/chessboard) (`@mirasen/chessboard`, MIT license) with [chess.js](https://github.com/jhlywa/chess.js) for rules. The board provides drag-and-drop, tap-to-move, legal-move hints, animated opponent replies, a responsive SVG board, and board flipping. The backend continues to verify all puzzle answers and record progress. The browser never receives the puzzle solution.
+
+**Why not Lichess Chessground directly?** [Chessground](https://github.com/lichess-org/chessground) is the actual open-source frontend board used by Lichess, but its GPL-3.0-or-later license requires providing the corresponding source of the combined app to website users. We are using MIT-licensed Mirasen instead, preserving the project's current repository-sharing choices. The visual behavior is Lichess-like, not a copy of Lichess branding or artwork.
+
+The Mirasen default piece set includes Chessnut artwork credited by its authors under Apache 2.0; maintain the package's accompanying license and attribution notices. The client bundle is generated automatically as part of `npm run deploy:cloud`, so there are **no new database migrations** for this board upgrade.
+
 ## Visual design
 
 The development website uses the layout conventions of the original SHJC Chess Tournament Manager (reference: `aflores-counsellor/SHJC-Chess-Tournament-Manager`): a slim top bar, horizontal section tabs, flat white panels, restrained dark-green accents, square-ish corners, small text and controls, and minimal nonessential copy. Tournament detail is organized into **player roster (left)**, **round pairings (right)** and **standings (below)**. Each match has a centered `VS` control that reveals White wins / Draw / Black wins, and previous rounds can be viewed using arrows beside the round title. This is a visual and interaction adaptation, not a replacement of the existing Cloudflare/D1 application architecture.
