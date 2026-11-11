@@ -107,6 +107,12 @@ function create({element,item,interactive,onMove,onError}){
       const result=await onMove(uci);
       if(destroyed)return;
       if(!result||!Array.isArray(result.played))throw Error("Unexpected puzzle response");
+      // Both correct and incorrect attempts update progress. Incorrect moves
+      // must not leave the board's mistake count stale after rollback.
+      item.played=result.played;
+      item.solved=!!result.solved;
+      item.mistakes=Number(result.mistakes)||0;
+      solved=item.solved;
       if(!result.correct){
         game.undo();
         applied=false;
@@ -120,10 +126,6 @@ function create({element,item,interactive,onMove,onError}){
         playUci(game,reply);
         board.set({fen:game.fen(),lastMove:lastMovePair([reply])});
       }
-      item.played=result.played;
-      item.solved=!!result.solved;
-      item.mistakes=Number(result.mistakes)||0;
-      solved=item.solved;
       sync();
     }catch(error){
       if(destroyed)return;
