@@ -229,7 +229,7 @@ function bind(){
    if(a==="tab"){
      state.tab=id;state.tournament=null;state.tdata=null;
      state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;
-     if(id==="puzzles" && window.PuzzleModule){
+     if(id==="puzzles" && typeof window!=="undefined" && window.PuzzleModule){
        action(async()=>{await window.PuzzleModule.list(state,api);});
      } else render();
    } else if(a==="new-club"||a==="join-club"||a==="new-tournament"){
@@ -288,7 +288,7 @@ function bind(){
  });
  const select=$("clubselect");
  if(select)select.onchange=()=>action(async()=>{state.club=select.value;state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;});
- if(window.PuzzleModule && state.tab==="puzzles")window.PuzzleModule.bind({state,render,api,post,action});
+ if(typeof window!=="undefined" && window.PuzzleModule && state.tab==="puzzles")window.PuzzleModule.bind({state,render,api,post,action});
  const form=$("modalform");
  if(form)form.onsubmit=e=>{
    e.preventDefault();
