@@ -181,7 +181,7 @@ function render(){
    bindAuth();return;
  }
  const viewingTournament=!!(state.tournament&&state.tdata);
- let content=viewingTournament?"":renderHeader();
+ let content=(viewingTournament||state.tab==="puzzles")?"":renderHeader();
  if(state.notice)content+='<div class="notice" role="alert">'+esc(state.notice)+'</div>';
  if(!state.club){
    content+='<section class="panel"><div class="panel-heading"><h2>Set up your chess club</h2></div>'+
