@@ -104,6 +104,47 @@ The Worker provides a safe JSON health endpoint at `/api/health`.
 
 Registration messages are shown under the form and no longer erase the entered information.
 
+## Lichess puzzle assignments (development)
+
+The **Puzzles** tab now has an initial moderator assignment workflow using the official Lichess puzzle API and `chess.js` for board rules. Members stay on this website, where the backend checks moves against Lichess solutions and records their progress.
+
+**Required one-time migration:** After pulling `dev`, run this once in the project directory on an already-authenticated Windows computer:
+
+```bat
+git pull origin dev
+npm install
+npm run db:migrate:cloud
+```
+
+Confirm the new `0002_puzzle_assignments.sql` migration. Cloudflare Git deployments update code but do **not** automatically apply D1 migrations. The `/api/health` endpoint now reports `"puzzles":"ready"` when this migration is applied. A missing migration does not affect existing club features.
+
+### Moderator workflow
+
+1. Open a club and choose **Puzzles** → **Assign puzzles**.
+2. Enter the title, select a Lichess theme and difficulty, choose 1–10 puzzles, and optionally specify a due date.
+3. Select club members and create the assignment. Alternatively, enter one or more five-character public Lichess puzzle IDs to assign specific puzzles.
+4. Open an assignment to view a per-member table of solved puzzles and mistakes.
+
+### Student workflow
+
+1. Open **Puzzles** in the assigned club and select an assignment.
+2. Choose a puzzle from the list. On the board, click the piece and its destination square (no Lichess account needed).
+3. Correct moves and opponent replies are applied; wrong attempts are counted. Progress is saved in D1 and resumes on the next visit.
+
+The API returns the starting board position, not the solution. Correctness is verified in the Worker. Puzzle theme and difficulty are determined by Lichess; assignment results are our own club-specific metrics, **not official Lichess puzzle ratings**.
+
+### Known limitations
+
+- The feature must be tested on the real free-tier Cloudflare Worker and D1 database before students use it.
+- Lichess limits API requests; bulk scraping is prohibited. If Lichess returns HTTP 429, wait at least a minute. For a larger puzzle catalog, import a curated subset of the CC0 puzzle dataset instead.
+- An assignment records a target list at creation time; members who join later are not automatically added.
+- Deadlines are displayed but are not yet hard submission cutoffs.
+- Wrong answers count as mistakes, while each fully solved puzzle counts once.
+- First version uses click-to-move; full drag-and-drop, promotion selection, timed exercises, hints, score distributions and analytics by skill can come later.
+- The app needs additional authentication hardening, email verification, abuse controls and age-appropriate privacy settings before use with students.
+
+Official sources: https://lichess-org.github.io/api/ and https://database.lichess.org/ .
+
 ## Visual design
 
 The development website uses the layout conventions of the original SHJC Chess Tournament Manager (reference: `aflores-counsellor/SHJC-Chess-Tournament-Manager`): a slim top bar, horizontal section tabs, flat white panels, restrained dark-green accents, square-ish corners, small text and controls, and minimal nonessential copy. Tournament detail is organized into **player roster (left)**, **round pairings (right)** and **standings (below)**. Each match has a centered `VS` control that reveals White wins / Draw / Black wins, and previous rounds can be viewed using arrows beside the round title. This is a visual and interaction adaptation, not a replacement of the existing Cloudflare/D1 application architecture.
