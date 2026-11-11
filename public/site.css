@@ -163,19 +163,35 @@ td.player-name{font-weight:600}
 .puzzle-item:hover{background:#f8faf8}
 .puzzle-item.current{background:var(--primary-light);border-left:3px solid var(--primary);padding-left:12px;font-weight:650}
 .puzzle-solving{display:grid;grid-template-columns:minmax(245px,430px) minmax(150px,1fr);gap:23px;align-items:start;padding:18px}
-.chess-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;max-width:430px;aspect-ratio:1;border:1px solid #c4cfc6;background:#fff}
-.chess-square{border:0;border-radius:0;display:flex;align-items:center;justify-content:center;padding:0;aspect-ratio:1;cursor:pointer;position:relative;min-width:0}
-.chess-square.light{background:#edf1e9}
-.chess-square.dark{background:#a4b8a6}
-.chess-square.selected{box-shadow:inset 0 0 0 3px #2e684a;background:#cadfc6}
-.chess-square:disabled{cursor:default}
-.chess-square:hover:not(:disabled){filter:brightness(.95)}
-.chess-piece{font-size:clamp(20px,3.2vw,39px);font-family:"Segoe UI Symbol","DejaVu Sans",serif;line-height:1;pointer-events:none}
-.white-piece{color:white;-webkit-text-stroke:1.2px #293a31;text-shadow:0 1px 1px #25352d}
-.black-piece{color:#202924;text-shadow:0 0 1px #202924}
+.chess-board-host{
+  width:100%;
+  max-width:430px;
+  aspect-ratio:1;
+  position:relative;
+  overflow:hidden;
+  background:#f0d9b5;
+  border:1px solid #b0a58e;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.chess-board-host svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.chess-board-host:focus-within{
+  outline:2px solid #254e3b;
+  outline-offset:2px;
+}
 .puzzle-instructions strong{font-size:14px}
 .puzzle-instructions>p{margin-top:8px;line-height:1.55}
 .puzzle-feedback{font-size:13px;font-weight:600;color:var(--primary);min-height:22px;margin-top:16px}
 .puzzle-feedback:empty{min-height:0}
 @media(max-width:850px){.puzzle-solving{grid-template-columns:minmax(200px,360px) minmax(130px,1fr);gap:14px;padding:13px}}
-@media(max-width:610px){.puzzle-solving{grid-template-columns:1fr}.chess-board{max-width:min(100%,420px);margin-inline:auto}.puzzle-form-grid{grid-template-columns:1fr}.chess-piece{font-size:clamp(23px,9vw,39px)}}
+@media(max-width:610px){.puzzle-solving{grid-template-columns:1fr}.chess-board-host{max-width:min(100%,420px);margin-inline:auto}.puzzle-form-grid{grid-template-columns:1fr}}
+
+/* Keep an animated board unobstructed on phones and tablets. */
+.puzzle-instructions{min-width:0}
+.puzzle-solving .chess-board-host{min-width:0}
+@media (pointer:coarse){.chess-board-host{touch-action:none}}
