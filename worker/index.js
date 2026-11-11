@@ -175,13 +175,50 @@ export default {
         const club=path[2],role=await member(db,club,user);
         if(!role)return error("Not a member of this club",403);
         if(path[3]==="puzzles")return handlePuzzleRequest({db,club,user,role:role.role,path,method,req});
+
+        // Club message board. Only moderators may publish or manage posts;
+        // all authenticated club members may read them via the club overview.
+        if(path[3]==="messages") {
+          if(role.role!=="moderator")return error("Only club moderators can manage announcements",403);
+          const ready=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='club_messages'").first();
+          if(!ready)return error("The message board needs migration 0003. Run npm run db:migrate:cloud.",503);
+          if(path.length===4 && method==="POST"){
+            const b=await body(req);
+            const title=String(b.title??"").trim(),message=String(b.message??"").trim();
+            if(title.length<3||title.length>100)return error("Title must be 3–100 characters");
+            if(message.length<1||message.length>2000)return error("Message must be 1–2,000 characters");
+            const id=uid();
+            await db.prepare("INSERT INTO club_messages(id,club_id,author_id,title,body) VALUES(?,?,?,?,?)")
+              .bind(id,club,user.id,title,message).run();
+            return json({id},201);
+          }
+          if(path.length===5 && method==="DELETE"){
+            const outcome=await db.prepare("DELETE FROM club_messages WHERE id=? AND club_id=?")
+              .bind(path[4],club).run();
+            if(!outcome.meta?.changes)return error("Message not found",404);
+            return json({ok:true});
+          }
+          if(path.length===6 && path[5]==="pin" && method==="POST"){
+            const outcome=await db.prepare("UPDATE club_messages SET is_pinned=CASE WHEN is_pinned=1 THEN 0 ELSE 1 END WHERE id=? AND club_id=?")
+              .bind(path[4],club).run();
+            if(!outcome.meta?.changes)return error("Message not found",404);
+            return json({ok:true});
+          }
+          return error("Message board endpoint not found",404);
+        }
         if(path.length===3 && method==="GET") {
           const c=await db.prepare("SELECT id,name,join_code FROM clubs WHERE id=?").bind(club).first();
           const members=(await db.prepare("SELECT u.id,u.name,m.role FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.club_id=? ORDER BY u.name").bind(club).all()).results;
           const tournaments=(await db.prepare("SELECT t.*, (SELECT count(*) FROM tournament_players p WHERE p.tournament_id=t.id) player_count FROM tournaments t WHERE club_id=? ORDER BY event_date DESC,created_at DESC").bind(club).all()).results;
           const attendance=(await db.prepare("SELECT a.user_id,u.name,a.event_date FROM attendance a JOIN users u ON u.id=a.user_id WHERE a.club_id=? ORDER BY event_date DESC LIMIT 500").bind(club).all()).results;
           const puzzles=(await db.prepare("SELECT user_id,count(*) attempts,sum(correct) correct FROM puzzle_attempts WHERE club_id=? GROUP BY user_id").bind(club).all()).results;
-          return json({club:{...c,join_code:role.role==="moderator"?c.join_code:null},role:role.role,members,tournaments,attendance,puzzles});
+          const boardReady=!!(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='club_messages'").first());
+          const messages=boardReady?(await db.prepare(
+            "SELECT m.id,m.title,m.body,m.is_pinned,m.created_at,u.name author_name "+
+            "FROM club_messages m JOIN users u ON u.id=m.author_id WHERE m.club_id=? "+
+            "ORDER BY m.is_pinned DESC,m.created_at DESC,m.id DESC LIMIT 30"
+          ).bind(club).all()).results:[];
+          return json({club:{...c,join_code:role.role==="moderator"?c.join_code:null},role:role.role,members,tournaments,attendance,puzzles,messages,board_ready:boardReady});
         }
         if(path[3]==="tournaments" && path.length===4 && method==="POST") {
           if(role.role!=="moderator")return error("Moderator access required",403);
