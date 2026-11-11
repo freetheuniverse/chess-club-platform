@@ -175,6 +175,8 @@ function auth(){
  '</section></div>';
 }
 function render(){
+ // A chessboard uses document-level pointer handlers: release them before replacing DOM.
+ if(typeof window!=="undefined")window.PuzzleModule?.destroyBoard?.();
  if(state.loading){$("app").innerHTML='<div class="auth"><section class="modal"><h2>Loading chess club…</h2></section></div>';return;}
  if(!state.user){
    $("app").innerHTML=auth()+(state.notice?'<div class="notice" role="alert">'+esc(state.notice)+'</div>':"");
