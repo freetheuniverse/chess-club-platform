@@ -76,7 +76,7 @@ function detail(state){
  const board=item?'<section class="panel"><div class="panel-heading"><div><h2>Puzzle '+(state.puzzleIndex+1)+'</h2><p class="muted">'+escape(item.themes?.slice(0,3).map(pretty).join(" · "))+' · rating '+item.rating+'</p></div>'+
  '<span id="puzzle-state-chip" class="pill '+(item.solved?"active":"")+'">'+(item.solved?"Solved":"In progress")+'</span></div><div class="puzzle-solving">'+
  boardHtml(item,state)+'<div class="puzzle-instructions"><strong>'+(item.solved?"Completed":"Find the best move")+'</strong>'+
- '<p class="muted">Drag pieces or select a piece and its destination. Legal moves are highlighted. Correct moves trigger the opponent’s reply.</p>'+
+ '<p class="muted">'+(item.solved?"Puzzle completed. Select another question to continue.":"Drag a piece or click two squares. Legal destinations are highlighted, and the opponent’s reply is animated.")+'</p>'+
  '<div id="puzzle-feedback" class="puzzle-feedback" role="status">'+escape(state.puzzleFeedback||"")+'</div>'+
  '<p class="muted" id="puzzle-mistake-count">Mistakes: '+item.mistakes+'</p>'+
  '<div class="row" style="margin-top:12px">'+btn("Flip board","flip","btn ghost small")+(state.puzzleIndex>0?btn("Previous","select:"+(state.puzzleIndex-1)):"")+
