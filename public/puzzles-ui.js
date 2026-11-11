@@ -3,7 +3,6 @@ let liveBoard=null;
 function destroyBoard(){if(liveBoard){liveBoard.destroy();liveBoard=null;}}
 const THEME_OPTIONS=[["mix","Mixed tactics"],["fork","Forks"],["pin","Pins"],["skewer","Skewers"],["discoveredAttack","Discovered attacks"],["mateIn1","Mate in one"],["mateIn2","Mate in two"],["mateIn3","Mate in three"],["endgame","Endgames"],["opening","Openings"],["middlegame","Middlegames"],["hangingPiece","Hanging pieces"],["defensiveMove","Defensive moves"],["promotion","Promotion"],["sacrifice","Sacrifices"],["backRankMate","Back-rank mate"]];
 const DIFFICULTIES=[["easiest","Very easy"],["easier","Easy"],["normal","Normal"],["harder","Hard"],["hardest","Very hard"]];
-const symbols={w:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},b:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}};
 const escape=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pretty=x=>x?.replace(/([A-Z])/g," $1")||"";
 const fmt=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No deadline";
@@ -14,16 +13,6 @@ async function open(state,api,id){
  state.activeAssignment=id;state.assignmentData=await api("clubs/"+state.club+"/puzzles/assignments/"+id);
  state.puzzleIndex=Math.max(0,state.assignmentData.items.findIndex(i=>!i.solved));
  state.puzzleFeedback="";state.puzzleSquare=null;
-}
-function boardPosition(item){
- if(!window.ChessEngine)throw Error("Chessboard is not loaded. Refresh this page.");
- const game=new window.ChessEngine(item.start_fen);
- for(const uci of item.played){
-   const move={from:uci.slice(0,2),to:uci.slice(2,4)};
-   if(uci.length===5)move.promotion=uci[4];
-   game.move(move);
- }
- return game;
 }
 function boardHtml(item,state){
  // The board library owns squares, pointer dragging, click moves, highlights and animations.
