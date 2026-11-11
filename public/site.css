@@ -54,6 +54,25 @@ a:hover{text-decoration:underline}
 .side-club-dot{flex:0 0 7px;width:7px;height:7px;border-radius:100%;border:1px solid #89ad93}
 .side-club.active .side-club-dot{background:#d0e9ca;border-color:#d0e9ca}
 .side-club-name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Club-first sidebar: choose a club, then work within that club. */
+.side-clubs{display:flex;flex-direction:column;gap:4px;min-width:0}
+.side-clubs .side-section-heading{margin-bottom:5px}
+.side-group-label{padding:8px 13px 3px;color:#9fb8a7;font-size:10px;font-weight:650;letter-spacing:.04em}
+.side-clubs .side-club-list{max-height:205px;overflow-y:auto;overscroll-behavior:contain;padding:1px 0}
+.side-clubs .side-club{min-height:40px}
+.side-clubs .side-club.active{background:#eaf3e9;color:#173e29;font-weight:700}
+.side-clubs .side-club.active .side-club-dot{background:#245d3b;border-color:#245d3b}
+.side-clubs .side-join{margin-top:9px;border:1px dashed #54735d;color:#d9eade;min-height:36px;font-size:12px}
+.side-clubs .side-join:hover{border-color:#9db8a1;background:#244c35;color:#fff}
+.side-workspace-heading{padding:0 12px 13px;min-width:0}
+.side-workspace-heading .side-section-label{padding:0;margin-bottom:6px}
+.side-workspace-club{font-size:15px;font-weight:700;line-height:1.35;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-workspace-empty{padding-top:0;line-height:1.55}
+.sidebar .side-section-divider{margin:20px 9px 17px}
+.sidebar .side-nav{gap:3px}
+.sidebar .side-nav .side-link{padding-left:13px}
+
 .side-empty{color:#a3b9ab;font-size:12px;padding:4px 13px 9px}
 .side-footer{margin-top:auto;padding-top:28px}
 .side-join{color:#d5e8dc}
