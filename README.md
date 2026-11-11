@@ -155,11 +155,27 @@ This dependency replaces the earlier MIT board. Cloudflare's current build image
 
 ## Visual design and navigation
 
-The current website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. The sidebar puts **Your clubs** first, with club creation (+) and Join a club immediately below the managed and joined club lists. Once a club is selected, its name appears under **Club workspace**, followed by Overview, Tournaments, **Puzzle Assignments**, Members, and Attendance. This makes clear that these pages belong to the active club. "Puzzle Assignments" is the destination; **Assign puzzles** is the moderator's creation action.
+The website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. **Your clubs** appears before the selected club's workspace pages. The standalone "Managed" label is removed; the optional "Joined" label distinguishes clubs in which the account is a student member. Both the centered **+** control and **Add a Club** open a chooser offering **Create a club** or **Join a club**.
 
-Clubs are displayed in two groups based on the signed-in account's membership role: **Managed clubs** (moderator access) and **Joined clubs**. A plus button beside Managed clubs creates a new club; a Join a club action remains available. Selecting a club clears tournament and puzzle state from the previous club and opens the new club's overview. On small screens the sidebar becomes a toggleable drawer.
+The active club appears under **Club workspace**, with Overview, Tournaments, Puzzle Assignments, Members, and Attendance below it. Switching clubs resets stale tournament and puzzle selection. On narrow screens the sidebar is a toggleable drawer.
 
-Tournament detail preserves the SHJC pairing layout: player roster on the left, round pairings on the right, and standings underneath. Each match has a centered VS control for entering White wins / Draw / Black wins. The browser-only navigation changes do not alter Cloudflare Worker authorization or the D1 database schema. UI smoke tests cover the sidebar and club switching.
+The **Overview** now puts the club's **Message board** on the left and **Quick reference** on the right. The quick-reference table shows members, tournaments, tournaments in progress, and attendance dates; below it are clickable tournament names that open the corresponding pairing workspace. The old large metrics strip, attendance summary card, and recent-tournaments table are removed. The club name is displayed clearly above the page title.
+
+### Club message board setup
+
+The message board stores real club announcements in Cloudflare D1. Moderators can **create, pin/unpin, and delete** posts; all members of that club can read them. The server checks membership and moderator access, and the frontend escapes titles and message text.
+
+The first time you deploy this feature, apply migration `0003_club_messages.sql` from the local project folder:
+
+```bat
+git pull origin dev
+npm install
+npm run db:migrate:cloud
+```
+
+Cloudflare Builds automatically deploys application code but **does not run D1 migrations**. Until this migration is applied, the overview continues to work and shows a friendly "Message board setup required" message. This migration does not alter existing tournament, attendance, or puzzle-assignment records.
+
+Tournament detail still preserves the original SHJC pairing layout: the player roster on the left, round pairings on the right, and standings underneath. Each match has a centered VS control for entering results. UI tests cover sidebar and club switching, the message board, and permission-based controls.
 
 ## Design and data rules
 
