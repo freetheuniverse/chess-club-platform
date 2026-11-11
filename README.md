@@ -104,6 +104,12 @@ The Worker provides a safe JSON health endpoint at `/api/health`.
 
 Registration messages are shown under the form and no longer erase the entered information.
 
+## Visual design
+
+The development website uses the layout conventions of the original SHJC Chess Tournament Manager (reference: `aflores-counsellor/SHJC-Chess-Tournament-Manager`): a slim top bar, horizontal section tabs, flat white panels, restrained dark-green accents, square-ish corners, small text and controls, and minimal nonessential copy. Tournament detail is organized into **player roster (left)**, **round pairings (right)** and **standings (below)**. Each match has a centered `VS` control that reveals White wins / Draw / Black wins, and previous rounds can be viewed using arrows beside the round title. This is a visual and interaction adaptation, not a replacement of the existing Cloudflare/D1 application architecture.
+
+The current Cloudflare backend locks rosters once a tournament's rounds start; mid-tournament add/remove/restore from the Apps Script tool is a separate future feature. The new club member directory requires accounts, rather than the original manually saved guest-player names. UI smoke tests run as part of `npm run check`.
+
 ## Design and data rules
 
 - Roles are scoped per club: moderator vs student.
