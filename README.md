@@ -82,6 +82,11 @@ The online address is publicly reachable; use test data only until authenticatio
 
 **Do not** connect the `main` branch of this repository directly to this test Worker or reuse the testing database for live student data.
 
+
+### Troubleshooting first Workers Build
+
+If Cloudflare reports `ENOENT: /opt/buildhome/repo/package.json`, check the build's branch label. The `main` branch is intentionally only a placeholder; the application resides on `dev`. In Cloudflare, set **Settings → Build → Branch control → Production branch** to `dev` and save. **Retry build** may rerun the old `main` commit; a fresh push to `dev` triggers a new build from the correct branch.
+
 ## Design and data rules
 
 - Roles are scoped per club: moderator vs student.
