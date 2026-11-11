@@ -16,5 +16,12 @@
       "database_id": "cb237797-d2c9-42ed-8b74-f402487bcbff",
       "migrations_dir": "db/migrations"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  }
 }
