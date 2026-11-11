@@ -4,12 +4,54 @@ const uid = () => crypto.randomUUID();
 const today = () => { const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/Belize",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day; };
 const hex = bytes => [...new Uint8Array(bytes)].map(x => x.toString(16).padStart(2, "0")).join("");
 async function digest(value) { return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))); }
-async function passwordHash(password, salt) {
-  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations: 210000, hash: "SHA-256" }, k, 256));
+
+// Production Workers reject PBKDF2 requests above 100,000 iterations.
+// Run three domain-separated 100k rounds sequentially instead of one unsupported
+// 210k round. This is a versioned chained KDF, not standard 300k-round PBKDF2.
+// Move to a managed identity service or reviewed password KDF before public launch.
+const PASSWORD_SCHEME = "pbkdf2-chain-v2";
+const PASSWORD_ROUNDS = 3;
+const PBKDF2_ITERATIONS = 100000;
+async function derivePbkdf2(material, salt, iterations=PBKDF2_ITERATIONS) {
+  const key = await crypto.subtle.importKey("raw", material, "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations, hash: "SHA-256" },
+    key, 256
+  ));
 }
-async function makePassword(password) { const salt = uid(); return salt + ":" + await passwordHash(password, salt); }
-async function verifyPassword(password, stored) { const [salt, hashed] = stored.split(":"); return !!salt && (await passwordHash(password, salt)) === hashed; }
+async function passwordHash(password, salt) {
+  let material = new TextEncoder().encode(password);
+  for (let round=1; round<=PASSWORD_ROUNDS; round++) {
+    material = await derivePbkdf2(material, PASSWORD_SCHEME + ":" + salt + ":" + round);
+  }
+  return hex(material);
+}
+async function makePassword(password) {
+  const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+  return PASSWORD_SCHEME + ":" + salt + ":" + await passwordHash(password, salt);
+}
+function equalHex(a,b) {
+  if (typeof a!=="string" || typeof b!=="string" || a.length!==b.length) return false;
+  let delta=0;
+  for(let i=0;i<a.length;i++)delta |= a.charCodeAt(i)^b.charCodeAt(i);
+  return delta===0;
+}
+async function verifyPassword(password, stored) {
+  if(typeof stored!=="string")return false;
+  const parts=stored.split(":");
+  if(parts.length===3 && parts[0]===PASSWORD_SCHEME) {
+    const [,salt,hashed]=parts;
+    if(!/^[a-f0-9]{32}$/.test(salt) || !/^[a-f0-9]{64}$/.test(hashed))return false;
+    return equalHex(await passwordHash(password,salt),hashed);
+  }
+  // Compatibility for local development accounts created before this fix.
+  if(parts.length===2) {
+    const [salt,hashed]=parts;
+    if(!salt || !/^[a-f0-9]{64}$/.test(hashed))return false;
+    return equalHex(hex(await derivePbkdf2(new TextEncoder().encode(password),salt,210000)),hashed);
+  }
+  return false;
+}
 function cookie(name, value, maxAge) { return name + "=" + value + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=" + maxAge; }
 async function sessionUser(req, db) {
   const token = req.headers.get("Cookie")?.match(/(?:^|;\s*)chess_session=([^;]+)/)?.[1];
