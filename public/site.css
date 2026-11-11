@@ -274,3 +274,74 @@ td.player-name{font-weight:600}
  .app-layout{display:block}
  .main{max-width:none;padding:0}
 }
+
+
+/* Refined club selection and the Add a Club action */
+.side-section-heading{align-items:center;min-height:34px}
+.side-section-heading .side-section-label{line-height:30px;margin:0;display:flex;align-items:center;padding-top:0;padding-bottom:0}
+.side-add{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:30px;line-height:1;padding:0}
+.side-add .side-icon{display:block;flex:0 0 17px;width:17px;height:17px;opacity:1}
+.side-clubs .side-join{justify-content:flex-start;margin-top:9px}
+.club-choice-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.club-choice{display:flex;flex-direction:column;align-items:flex-start;gap:7px;border:1px solid var(--line);border-radius:5px;background:#fff;padding:16px;text-align:left;color:var(--ink);min-height:115px}
+.club-choice:hover,.club-choice:focus-visible{background:#f3f7f2;border-color:#8dad95}
+.club-choice strong{font-size:14px;font-weight:650}
+.club-choice span{font-size:12px;color:var(--subtle);line-height:1.45}
+
+/* Overview: messages first, quick reference in the right-hand table */
+.page-club-name{font-size:16px;font-weight:640;letter-spacing:-.01em;color:#42634d;margin-bottom:3px;line-height:1.4}
+.overview-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(315px,.85fr);gap:20px;align-items:start}
+.overview-layout>.panel,.overview-side{min-width:0}
+.overview-side{display:flex;flex-direction:column;gap:16px}
+.message-board{min-height:350px}
+.message-board>.panel-heading{align-items:center}
+.message-board>.panel-heading .panel-note{margin-top:3px}
+.message-feed{display:flex;flex-direction:column}
+.message-post{padding:18px 20px;border-bottom:1px solid var(--line-soft)}
+.message-post:last-child{border-bottom:0}
+.message-title-line{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.message-title-group{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0}
+.message-title-group h3{font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.message-pinned{padding:2px 6px;border-radius:3px;border:1px solid #bed2c1;background:#e9f4ea;color:#28563e;font-size:10px;font-weight:700}
+.message-actions{display:flex;gap:12px;flex:0 0 auto}
+.message-actions .btn.text{color:#586b60;font-weight:550}
+.message-actions .btn.text:last-child:hover{color:var(--error)}
+.message-meta{font-size:11px;color:var(--subtle);margin-top:5px}
+.message-body{font-size:13px;line-height:1.65;margin-top:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.message-empty{padding:48px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;min-height:255px}
+.message-empty h3{font-size:15px}
+.message-empty p{font-size:13px;color:var(--subtle);max-width:350px;line-height:1.6}
+.message-empty code{margin-top:4px;padding:7px 10px;background:#f5f7f5;border:1px solid var(--line);border-radius:4px;font-size:12px}
+.overview-facts th,.overview-facts td{font-size:13px;padding:12px 18px;border-bottom:1px solid var(--line-soft)}
+.overview-facts th{font-weight:550;color:var(--subtle);background:#fff;width:70%}
+.overview-facts td{text-align:right;font-size:16px;font-weight:700;color:var(--ink)}
+.overview-tournament-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line-soft);padding:12px 18px}
+.overview-tournament-heading h3{font-size:13px}
+.overview-tournaments td{padding:10px 18px;vertical-align:middle}
+.overview-tournaments td:first-child{min-width:0}
+.overview-status{width:95px;text-align:right;white-space:nowrap}
+.overview-tournament-date{display:block;margin-top:4px}
+.reference-link{color:var(--primary);font-size:13px;font-weight:650;background:transparent;border:0;padding:0;text-align:left;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+.reference-link:hover{color:#173b28;text-decoration-thickness:2px}
+.overview-no-tournaments{font-size:12px;color:var(--subtle);padding:16px 18px}
+.form textarea.field{resize:vertical;min-height:110px;line-height:1.55}
+@media(max-width:1130px){
+ .overview-layout{grid-template-columns:minmax(0,1.25fr) minmax(260px,.85fr);gap:15px}
+ .overview-facts th,.overview-facts td,.overview-tournaments td{padding-left:12px;padding-right:12px}
+}
+@media(max-width:870px){
+ .overview-layout{grid-template-columns:1fr}
+ .message-board{min-height:270px}
+}
+@media(max-width:520px){
+ .club-choice-list{grid-template-columns:1fr}
+ .club-choice{min-height:85px}
+ .message-post{padding:15px 13px}
+ .message-title-line{gap:7px}
+ .message-actions{gap:6px}
+ .message-actions .btn.text{font-size:11px}
+ .page-club-name{font-size:15px}
+}
+@media print{
+ .message-actions,.message-board .btn{display:none}
+}
