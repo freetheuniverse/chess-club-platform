@@ -2,6 +2,7 @@ const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,t
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
+const statusText=x=>({draft:"Not started",active:"In progress",completed:"Completed"}[x]||x);
 async function api(path,options={}){
  const r=await fetch("/api/"+path,{credentials:"same-origin",...options,headers:options.body?{"Content-Type":"application/json"}:{}});
  const type=r.headers.get("content-type")||"";
@@ -55,7 +56,6 @@ function shell(content){
  const workspace=currentClub?
    '<div class="side-section-divider"></div><div class="side-workspace-heading">'+
      '<div class="side-section-label">Club workspace</div>'+
-     '<div class="side-workspace-club" title="'+esc(currentClub.name)+'">'+esc(currentClub.name)+'</div>'+
    '</div><nav class="side-nav" aria-label="Sections for '+esc(currentClub.name)+'">'+pageLinks+'</nav>':
    '<div class="side-section-divider"></div><p class="side-empty side-workspace-empty">Choose a club above to open its workspace.</p>';
  return '<div class="shell"><header class="topbar"><div class="topbar-inner">'+
@@ -66,8 +66,7 @@ function shell(content){
    (state.sidebarOpen?'<button type="button" class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Close navigation"></button>':'')+
    '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
    '<nav class="side-clubs" aria-label="Your clubs">'+
-     '<div class="side-section-heading"><span class="side-section-label">Your clubs</span>'+
-       '<button type="button" class="side-add" data-action="add-club" title="Add a Club" aria-label="Add a Club">'+sideIcon("plus")+'</button></div>'+
+     '<div class="side-section-heading"><span class="side-section-label">Your clubs</span></div>'+
      clubGroups+
      '<button type="button" class="side-link side-join" data-action="add-club">'+sideIcon("plus")+'<span>Add a Club</span></button>'+
    '</nav>'+workspace+
@@ -96,7 +95,7 @@ function overview(){
  const statsRows=stats.map(([label,value])=>'<tr><th scope="row">'+label+'</th><td class="overview-number">'+value+'</td></tr>').join("");
  const tournamentRows=d.tournaments.slice(0,7).map(t=>
    '<tr><td><button type="button" class="reference-link" data-action="tournament:'+t.id+'">'+esc(t.title)+'</button>'+
-   '<span class="muted overview-tournament-date">'+date(t.event_date)+'</span></td><td class="overview-status"><span class="pill '+esc(t.status)+'">'+esc(t.status)+'</span></td></tr>'
+   '<span class="muted overview-tournament-date">'+date(t.event_date)+'</span></td><td class="overview-status"><span class="pill '+esc(t.status)+'">'+esc(statusText(t.status))+'</span></td></tr>'
  ).join("");
  const posts=messages.map(m=>'<article class="message-post">'+
    '<div class="message-title-line"><div class="message-title-group">'+
@@ -126,13 +125,17 @@ function overview(){
 }
 
 function tournamentList(items){
- if(!items.length)return '<div class="empty-action"><p>No tournaments have been created.</p>'+button("Start new tournament","new-tournament")+'</div>';
+ if(!items.length)return '<div class="empty-action"><p>No tournaments have been created.</p>'+
+ (state.data?.role==="moderator"?button("Start new tournament","new-tournament"):"")+'</div>';
+ const canDelete=state.data?.role==="moderator";
  return '<div class="tablewrap"><table aria-label="Tournaments"><thead><tr><th>Tournament</th><th>Date</th><th class="num">Players</th><th>Status</th><th></th></tr></thead><tbody>'+
  items.map(t=>'<tr><td><button type="button" class="table-link" data-action="tournament:'+t.id+'">'+esc(t.title)+'</button></td>'+
- '<td>'+date(t.event_date)+'</td><td class="num">'+t.player_count+'</td><td><span class="pill '+esc(t.status)+'">'+esc(t.status)+'</span></td>'+
- '<td style="text-align:right">'+button("Open","tournament:"+t.id,"btn ghost small")+'</td></tr>').join("")+
+ '<td>'+date(t.event_date)+'</td><td class="num">'+t.player_count+'</td><td><span class="pill '+esc(t.status)+'">'+esc(statusText(t.status))+'</span></td>'+
+ '<td class="tournament-actions">'+button("Open","tournament:"+t.id,"btn ghost small")+
+ (canDelete?button("Delete","delete-tournament:"+t.id,"btn danger-ghost small"):"")+'</td></tr>').join("")+
  '</tbody></table></div>';
 }
+
 function tournaments(){
  return '<section class="panel"><div class="panel-heading"><h2>All tournaments</h2><span class="muted">'+state.data.tournaments.length+' total</span></div>'+
  tournamentList(state.data.tournaments)+'</section>';
@@ -199,7 +202,7 @@ function tournamentDetail(){
  }).join("");
  return '<a class="back interactive" data-action="close-tournament">← Tournaments</a>'+
  '<div class="workspace-title"><div class="spread"><div><div class="eyebrow">Tournament</div><h1>'+esc(t.title)+'</h1>'+
- '<p class="muted">'+date(t.event_date)+' · '+d.players.length+' players · '+esc(t.status)+'</p></div>'+
+ '<p class="muted">'+date(t.event_date)+' · '+d.players.length+' players · '+esc(statusText(t.status))+'</p></div>'+
  (can&&!completed&&roundCount?button("Finish tournament","complete-tournament","btn ghost small"):"")+
  '</div></div><div class="tournament-workspace"><aside>'+
  '<section class="panel"><div class="panel-heading"><h2>Player roster</h2><span class="muted">'+d.players.length+' players</span></div>'+
