@@ -153,6 +153,23 @@ This repository is public and contains its own GPL license. The website links to
 
 This dependency replaces the earlier MIT board. Cloudflare's current build image runs Node 24; local development should also use Node 24 or newer.
 
+## Account-free tournament guests and tournament management
+
+Moderators can enter guest player names directly during **New tournament** or in a tournament's **Player roster** before round 1. Guest players need **no email, account or password**. They are eligible for mixed guest/member pairings, byes, results and standings. Guests are tournament-only: they are not added to the club's authenticated member directory, puzzle assignments, or member attendance records. A moderator can remove a guest before the first round.
+
+The existing `games` table and historic rounds are preserved. New rounds use the guest-capable `tournament_games_v2` table. The website and Worker check whether the new migration exists and keep existing tournaments working until it is applied.
+
+**One-time database setup**, after pulling the `dev` branch:
+
+```bat
+git pull origin dev
+npm run db:migrate:cloud
+```
+
+This applies `0004_guest_tournament_players.sql` and any earlier pending migrations. Cloudflare Git deployments do not run D1 migrations.
+
+Tournament status labels are **Not started** (no rounds), **In progress** (at least one round), and **Completed** (finished). Moderators can delete a tournament after confirming the permanent loss of its rounds and game results. Club-level attendance records are intentionally retained since they can represent attendance across multiple tournaments on the same day.
+
 ## Visual design and navigation
 
 The website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. **Your clubs** appears before the selected club's workspace pages. The standalone "Managed" label is removed; the optional "Joined" label distinguishes clubs in which the account is a student member. Both the centered **+** control and **Add a Club** open a chooser offering **Create a club** or **Join a club**.
@@ -165,7 +182,7 @@ The **Overview** now puts the club's **Message board** on the left and **Quick r
 
 The message board stores real club announcements in Cloudflare D1. Moderators can **create, pin/unpin, and delete** posts; all members of that club can read them. The server checks membership and moderator access, and the frontend escapes titles and message text.
 
-The first time you deploy this feature, apply migration `0003_club_messages.sql` from the local project folder:
+The first time you deploy the message board, apply migration `0003_club_messages.sql` (and any other pending migrations) from the local project folder:
 
 ```bat
 git pull origin dev
