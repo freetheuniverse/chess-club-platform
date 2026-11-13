@@ -269,6 +269,14 @@ export default {
               throw e;
             }
           }
+          if(path[5]==="guests" && path.length===7 && method==="DELETE"){
+            if(!guestReady)return error("Guest players require migration 0004.",503);
+            if(t.status!=="draft")return error("Guests can only be removed before the first round.",409);
+            const removed=await db.prepare("DELETE FROM tournament_guests WHERE id=? AND tournament_id=?")
+              .bind(path[6],tid).run();
+            if(!removed.meta?.changes)return error("Guest player not found",404);
+            return json({ok:true});
+          }
           if(path[5]==="players" && path.length===6 && method==="POST"){
             if(t.status==="completed")return error("Tournament completed",409);
             if(t.status==="active")return error("Finish the tournament before changing its roster",409);
