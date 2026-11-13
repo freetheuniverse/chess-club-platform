@@ -201,7 +201,8 @@ function tournamentDetail(){
  }).join("");
  const roster=d.players.length?d.players.map((p,i)=>
    '<div class="roster-line"><span class="row"><span class="roster-number">'+(i+1)+'</span><strong>'+esc(p.name)+'</strong></span>'+
-   (p.guest?'<span class="pill">Guest</span>':'')+'</div>').join(""):empty("No players added.");
+   (p.guest?'<span class="roster-guest-actions"><span class="pill">Guest</span>'+
+    (can&&t.status==="draft"?button("Remove","remove-guest:"+p.id,"btn text small"):"")+'</span>':'')+'</div>').join(""):empty("No players added.");
  const addPlayers=can&&t.status==="draft"?
    '<div class="roster-add"><div class="spread" style="margin-bottom:9px"><h3>Add club members</h3><span class="selection-actions">'+
      button("All","select-all","btn text")+button("Clear","select-none","btn text")+'</span></div>'+
@@ -409,6 +410,14 @@ function bind(){
      if(!names.trim()){state.notice="Enter at least one guest player name.";render();return;}
      action(async()=>{
        await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/guests",{names});
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   } else if(a==="remove-guest"){
+     const player=state.tdata?.players.find(p=>p.id===id&&p.guest);
+     if(!player)return;
+     if(!confirm('Remove guest player "'+player.name+'" from this tournament?'))return;
+     action(async()=>{
+       await api("clubs/"+state.club+"/tournaments/"+state.tournament+"/guests/"+id,{method:"DELETE"});
        state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
      });
    } else if(a==="new-round"){
