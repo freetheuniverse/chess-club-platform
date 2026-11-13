@@ -60,10 +60,12 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  assert.match(html,/side-group-label">Joined/);
  assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
  assert.ok(html.indexOf("Club workspace") < html.indexOf("Puzzle Assignments"),"Workspace links should follow the selected club");
- assert.match(html,/side-workspace-club" title="School Chess Club">School Chess Club/);
+ assert.doesNotMatch(html,/side-workspace-club/);
+ assert.doesNotMatch(html,/class="side-add"/);
+ assert.match(html,/data-action="add-club"/);
  assert.match(html,/School Chess Club/);
  assert.match(html,/Community Chess/);
- assert.match(html,/aria-label="Add a Club"/);
+ assert.match(html,/data-action="add-club"/);
  assert.match(html,/data-action="club:club-2"/);
  assert.match(html,/Message board/);
  assert.match(html,/Training reminder/);
@@ -71,6 +73,7 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  assert.match(html,/reference-link/);
  assert.match(html,/November Round Robin/);
  assert.match(html,/data-action="tournament:tour-1"/);
+ assert.match(html,/Not started/);
  assert.doesNotMatch(html,/Recent tournaments|Club access|summary-line/);
  assert.doesNotMatch(html,/clubselect|tab-bar|class="mark"/);
 });
@@ -112,7 +115,7 @@ test("switching clubs from the sidebar resets old club context and loads the sel
  assert.equal(app.state.data.club.name,"Community Chess");
  const html=get("app").innerHTML;
  assert.match(html,/side-group-label">Joined/);
- assert.match(html,/side-workspace-club" title="Community Chess">Community Chess/);
+ assert.match(html,/data-action="club:club-2"/);
  assert.doesNotMatch(html,/clubselect/);
 });
 
@@ -192,4 +195,50 @@ test("club members can read messages but cannot publish or moderate",async()=>{
  const html=get("app").innerHTML;
  assert.match(html,/Message board/);
  assert.doesNotMatch(html,/data-action="new-message"|data-action="pin-message:|data-action="delete-message:/);
+});
+
+test("tournaments show accurate statuses and moderators can delete them",async()=>{
+ const {get,app}=startApp();await app.load();
+ app.state.tab="tournaments";
+ app.render();
+ const html=get("app").innerHTML;
+ assert.match(html,/Not started/);
+ assert.doesNotMatch(html,/>Draft</);
+ assert.match(html,/data-action="delete-tournament:tour-1"/);
+ assert.match(html,/class="btn danger-ghost small"/);
+ const fixture=app.state.data.tournaments[0];
+ fixture.status="active";
+ app.render();
+ assert.match(get("app").innerHTML,/In progress/);
+ fixture.status="completed";
+ app.render();
+ assert.match(get("app").innerHTML,/Completed/);
+});
+
+test("a tournament can show guest players without accounts",async()=>{
+ const {get,app,members}=startApp();await app.load();
+ app.state.tournament="guest-tour";
+ app.state.tdata={
+   tournament:{id:"guest-tour",title:"Friendly tournament",event_date:"2026-11-13",status:"draft"},
+   players:[...members,{id:"guest_11111111-1111-4111-8111-111111111111",name:"Visitor",guest:1}],
+   rounds:[],games:[],guest_ready:true,
+   standings:[...members,{id:"guest_11111111-1111-4111-8111-111111111111",name:"Visitor",points:0,guest:1}].map(p=>({points:0,...p}))
+ };
+ app.render();
+ const html=get("app").innerHTML;
+ assert.match(html,/Visitor/);
+ assert.match(html,/Add guest players/);
+ assert.match(html,/guest-player-names/);
+ assert.match(html,/remove-guest:guest_11111111/);
+ assert.match(html,/data-action="delete-tournament:guest-tour"/);
+ assert.match(html,/Not started/);
+});
+
+test("new tournament dialog accepts guest names without creating user accounts",async()=>{
+ const {get,app,handlers}=startApp();await app.load();
+ handlers.get("new-tournament")();
+ const html=get("app").innerHTML;
+ assert.match(html,/name="guest_names"/);
+ assert.match(html,/no accounts needed/);
+ assert.doesNotMatch(html,/Guest email|Guest password/);
 });
