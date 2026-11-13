@@ -163,6 +163,7 @@ function tournamentDetail(){
  const roundNumber=state.viewRound && state.viewRound>=1 && state.viewRound<=roundCount?state.viewRound:roundCount;
  const visibleGames=d.games.filter(g=>g.round_number===roundNumber);
  const unselected=state.data.members.filter(m=>!d.players.some(p=>p.id===m.id));
+ const guestReady=d.guest_ready!==false;
  const counts=new Map(d.players.map(p=>[p.id,{wins:0,draws:0,losses:0}]));
  for(const g of d.games){
    if(!g.black_id||!g.result)continue;
@@ -175,17 +176,14 @@ function tournamentDetail(){
    if(!g.black_id)return '<div class="bye-row"><span class="board-number">'+(index+1)+'</span><strong>'+esc(g.white_name)+'</strong><span class="pill">Bye · 1 point</span></div>';
    const result=g.result==="1-0"?"White wins":g.result==="0-1"?"Black wins":g.result==="1/2-1/2"?"Draw":"";
    const expanded=state.expandedGame===g.id;
-   let center;
-   if(result){
-     center='<span class="result-chip">'+result+'</span>'+(can&&!completed?'<button type="button" class="change-result" data-action="result-toggle:'+g.id+'">Change result</button>':'');
-   }else{
-     center=can&&!completed?'<button type="button" class="vs-toggle" aria-expanded="'+expanded+'" data-action="result-toggle:'+g.id+'">VS</button>':'<span class="muted">VS</span>';
-   }
+   const center=result?'<span class="result-chip">'+result+'</span>'+
+       (can&&!completed?'<button type="button" class="change-result" data-action="result-toggle:'+g.id+'">Change result</button>':''):
+       can&&!completed?'<button type="button" class="vs-toggle" aria-expanded="'+expanded+'" data-action="result-toggle:'+g.id+'">VS</button>':
+       '<span class="muted">VS</span>';
    const picker=can&&!completed&&expanded?'<div class="match-result">'+
      button("White wins","result:"+g.id+":1-0","btn ghost small")+
      button("Draw","result:"+g.id+":1/2-1/2","btn ghost small")+
-     button("Black wins","result:"+g.id+":0-1","btn ghost small")+
-     '</div>':'';
+     button("Black wins","result:"+g.id+":0-1","btn ghost small")+'</div>':'';
    return '<div class="match"><div class="match-row"><span class="board-number">'+(index+1)+'</span>'+
      '<span class="player-slot">'+esc(g.white_name)+'</span><div class="center-cell">'+center+'</div>'+
      '<span class="player-slot">'+esc(g.black_name)+'</span></div>'+picker+'</div>';
@@ -194,30 +192,49 @@ function tournamentDetail(){
    '<button type="button" class="btn ghost small" aria-label="Previous round" data-action="round:-1" '+(roundNumber<=1?'disabled':'')+'>‹</button>'+
    '<button type="button" class="btn ghost small" aria-label="Next round" data-action="round:1" '+(roundNumber>=roundCount?'disabled':'')+'>›</button></div>':'';
  const pairings=roundCount?'<div class="match-header"><span>Board</span><span>White</span><span class="center-cell">Result</span><span>Black</span></div>'+
- visibleGames.map(gameRow).join(""):empty("Add at least two players, then select New pairings.");
+ visibleGames.map(gameRow).join(""):empty("Add at least two players, then select Start round 1.");
  const standings=d.standings.map((p,i)=>{
    const c=counts.get(p.id)||{wins:0,draws:0,losses:0};
-   return '<tr><td class="num">'+(i+1)+'</td><td class="player-name">'+esc(p.name)+'</td><td class="num points">'+p.points.toFixed(1)+'</td>'+
-    '<td class="num">'+c.wins+'</td><td class="num">'+c.draws+'</td><td class="num">'+c.losses+'</td></tr>';
+   return '<tr><td class="num">'+(i+1)+'</td><td class="player-name">'+esc(p.name)+
+      (p.guest?'<span class="standings-guest">Guest</span>':'')+'</td><td class="num points">'+p.points.toFixed(1)+'</td>'+
+      '<td class="num">'+c.wins+'</td><td class="num">'+c.draws+'</td><td class="num">'+c.losses+'</td></tr>';
  }).join("");
- return '<a class="back interactive" data-action="close-tournament">← Tournaments</a>'+
+ const roster=d.players.length?d.players.map((p,i)=>
+   '<div class="roster-line"><span class="row"><span class="roster-number">'+(i+1)+'</span><strong>'+esc(p.name)+'</strong></span>'+
+   (p.guest?'<span class="pill">Guest</span>':'')+'</div>').join(""):empty("No players added.");
+ const addPlayers=can&&t.status==="draft"?
+   '<div class="roster-add"><div class="spread" style="margin-bottom:9px"><h3>Add club members</h3><span class="selection-actions">'+
+     button("All","select-all","btn text")+button("Clear","select-none","btn text")+'</span></div>'+
+     '<div class="roster-box">'+
+       (unselected.length?unselected.map(p=>'<label class="selectrow"><input type="checkbox" class="playerpick" value="'+p.id+'"><span>'+esc(p.name)+'</span></label>').join(""):empty("All members are playing."))+
+     '</div><div class="roster-submit">'+button("Add selected members","add-players","btn ghost small")+'</div>'+
+     '<div class="guest-player-entry"><h3>Add guest players</h3>'+
+       (guestReady?
+         '<label for="guest-player-names" class="guest-label">One player per line · no account needed</label>'+
+         '<textarea class="field guest-names" id="guest-player-names" rows="3" maxlength="7000" placeholder="Alex Smith&#10;Taylor Jones"></textarea>'+
+         button("Add guest players","add-guests","btn ghost small")+
+         '<p class="panel-note">Guest players participate in pairings and standings without signing in.</p>':
+         '<p class="panel-note">Run database migration 0004 to enable guest players.</p>')+
+     '</div></div>':'';
+ return '<button type="button" class="back interactive" data-action="close-tournament">← Tournaments</button>'+
  '<div class="workspace-title"><div class="spread"><div><div class="eyebrow">Tournament</div><h1>'+esc(t.title)+'</h1>'+
  '<p class="muted">'+date(t.event_date)+' · '+d.players.length+' players · '+esc(statusText(t.status))+'</p></div>'+
+ '<div class="round-actions">'+
  (can&&!completed&&roundCount?button("Finish tournament","complete-tournament","btn ghost small"):"")+
- '</div></div><div class="tournament-workspace"><aside>'+
- '<section class="panel"><div class="panel-heading"><h2>Player roster</h2><span class="muted">'+d.players.length+' players</span></div>'+
- '<div class="roster-list">'+(d.players.length?d.players.map((p,i)=>'<div class="roster-line"><span class="row"><span class="roster-number">'+(i+1)+'</span><strong>'+esc(p.name)+'</strong></span></div>').join(""):empty("No players added."))+'</div>'+
- (can&&t.status==="draft"?'<div class="roster-add"><div class="spread" style="margin-bottom:9px"><h3>Add club members</h3><span class="selection-actions">'+button("All","select-all","btn text")+button("Clear","select-none","btn text")+'</span></div>'+
- '<div class="roster-box">'+(unselected.length?unselected.map(p=>'<label class="selectrow"><input type="checkbox" class="playerpick" value="'+p.id+'"><span>'+esc(p.name)+'</span></label>').join(""):empty("All members are playing."))+
- '</div><div style="margin-top:11px">'+button("Add selected players","add-players","btn ghost small")+'</div></div>':'')+
- '</section></aside><div class="workspace-main"><section class="panel"><div class="panel-heading"><div class="round-title-control">'+
- '<h2>'+(roundCount?"Round "+roundNumber:"Pairings")+'</h2>'+roundNav+'</div>'+
+ (can?button("Delete tournament","delete-tournament:"+t.id,"btn danger-ghost small"):"")+
+ '</div></div></div>'+
+ '<div class="tournament-workspace"><aside><section class="panel"><div class="panel-heading"><h2>Player roster</h2>'+
+ '<span class="muted">'+d.players.length+' players</span></div><div class="roster-list">'+roster+'</div>'+addPlayers+'</section></aside>'+
+ '<div class="workspace-main"><section class="panel"><div class="panel-heading"><div class="round-title-control"><h2>'+
+ (roundCount?"Round "+roundNumber:"Pairings")+'</h2>'+roundNav+'</div>'+
  '<div class="round-actions">'+(can&&!completed?button(roundCount?"New pairings":"Start round 1","new-round","btn small"):"")+'</div></div>'+
  '<div>'+pairings+'</div></section>'+
  '<section class="panel"><div class="panel-heading"><h2>Standings</h2><span class="muted">Win 1 · Draw 0.5 · Loss 0</span></div>'+
- '<div class="tablewrap"><table aria-label="Standings"><thead><tr><th class="num">Rank</th><th>Player</th><th class="num">Points</th><th class="num">W</th><th class="num">D</th><th class="num">L</th></tr></thead>'+
+ '<div class="tablewrap"><table aria-label="Standings"><thead><tr><th class="num">Rank</th><th>Player</th>'+
+ '<th class="num">Points</th><th class="num">W</th><th class="num">D</th><th class="num">L</th></tr></thead>'+
  '<tbody>'+standings+'</tbody></table></div></section></div></div>';
 }
+
 function modal(){
  if(!state.modal)return "";
  const mode=state.modal;
