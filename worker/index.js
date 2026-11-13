@@ -1,3 +1,4 @@
+import {guestSchemaReady,tournamentPlayers,tournamentGames,newGameBindings,insertGuests,normalizeGuestNames} from "./tournaments.js";
 import { handlePuzzleRequest } from "./puzzles.js";
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 const error = (message, status = 400) => json({ error: message }, status);
@@ -79,9 +80,10 @@ async function recordAttendance(db, club, tournament, players) {
     await db.prepare("INSERT OR IGNORE INTO attendance(club_id,user_id,event_date,first_tournament_id) VALUES(?,?,?,?)").bind(club,id,tournament.event_date,tournament.id).run();
   }
 }
-async function standings(db, tournament) {
-  const players = (await db.prepare("SELECT u.id,u.name FROM tournament_players tp JOIN users u ON u.id=tp.user_id WHERE tp.tournament_id=? ORDER BY u.name").bind(tournament).all()).results;
-  const games = (await db.prepare("SELECT g.white_id,g.black_id,g.result FROM games g JOIN rounds r ON r.id=g.round_id WHERE r.tournament_id=?").bind(tournament).all()).results;
+async function standings(db,tournament) {
+  const ready=await guestSchemaReady(db);
+  const players=await tournamentPlayers(db,tournament,ready);
+  const games=await tournamentGames(db,tournament,ready);
   const scores = new Map(players.map(p => [p.id,{...p,points:0,played:0,opponents:[]}]));
   for (const g of games) {
     if (!g.result) continue;
@@ -113,11 +115,11 @@ export default {
     const url = new URL(req.url), path=url.pathname.split("/").filter(Boolean), method=req.method;
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     if (!env.DB) return error("Database binding missing. Configure D1 before running.", 503);
-    if (!["GET","POST"].includes(method)) return error("Method not allowed",405);
+    if (!["GET","POST","DELETE"].includes(method)) return error("Method not allowed",405);
     if (method!=="GET") {
       const origin=req.headers.get("Origin");
       if (origin && origin!==url.origin) return error("Invalid request origin",403);
-      if (!req.headers.get("Content-Type")?.startsWith("application/json")) return error("Expected JSON",415);
+      if (method==="POST" && !req.headers.get("Content-Type")?.startsWith("application/json")) return error("Expected JSON",415);
     }
     const db=env.DB;
     try {
@@ -209,7 +211,14 @@ export default {
         if(path.length===3 && method==="GET") {
           const c=await db.prepare("SELECT id,name,join_code FROM clubs WHERE id=?").bind(club).first();
           const members=(await db.prepare("SELECT u.id,u.name,m.role FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.club_id=? ORDER BY u.name").bind(club).all()).results;
-          const tournaments=(await db.prepare("SELECT t.*, (SELECT count(*) FROM tournament_players p WHERE p.tournament_id=t.id) player_count FROM tournaments t WHERE club_id=? ORDER BY event_date DESC,created_at DESC").bind(club).all()).results;
+          const guestReady=await guestSchemaReady(db);
+          const countSql=guestReady?
+            "SELECT t.*, ((SELECT count(*) FROM tournament_players p WHERE p.tournament_id=t.id) + "+
+            "(SELECT count(*) FROM tournament_guests g WHERE g.tournament_id=t.id)) player_count "+
+            "FROM tournaments t WHERE t.club_id=? ORDER BY event_date DESC,created_at DESC":
+            "SELECT t.*, (SELECT count(*) FROM tournament_players p WHERE p.tournament_id=t.id) player_count "+
+            "FROM tournaments t WHERE t.club_id=? ORDER BY event_date DESC,created_at DESC";
+          const tournaments=(await db.prepare(countSql).bind(club).all()).results;
           const attendance=(await db.prepare("SELECT a.user_id,u.name,a.event_date FROM attendance a JOIN users u ON u.id=a.user_id WHERE a.club_id=? ORDER BY event_date DESC LIMIT 500").bind(club).all()).results;
           const puzzles=(await db.prepare("SELECT user_id,count(*) attempts,sum(correct) correct FROM puzzle_attempts WHERE club_id=? GROUP BY user_id").bind(club).all()).results;
           const boardReady=!!(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='club_messages'").first());
@@ -218,7 +227,7 @@ export default {
             "FROM club_messages m JOIN users u ON u.id=m.author_id WHERE m.club_id=? "+
             "ORDER BY m.is_pinned DESC,m.created_at DESC,m.id DESC LIMIT 30"
           ).bind(club).all()).results:[];
-          return json({club:{...c,join_code:role.role==="moderator"?c.join_code:null},role:role.role,members,tournaments,attendance,puzzles,messages,board_ready:boardReady});
+          return json({club:{...c,join_code:role.role==="moderator"?c.join_code:null},role:role.role,members,tournaments,attendance,puzzles,messages,board_ready:boardReady,guest_ready:guestReady});
         }
         if(path[3]==="tournaments" && path.length===4 && method==="POST") {
           if(role.role!=="moderator")return error("Moderator access required",403);
@@ -231,14 +240,36 @@ export default {
         if(path[3]==="tournaments" && path[4]) {
           const tid=path[4],t=await db.prepare("SELECT * FROM tournaments WHERE id=? AND club_id=?").bind(tid,club).first();
           if(!t)return error("Tournament not found",404);
-          if(path.length===5 && method==="GET") {
-            const players=(await db.prepare("SELECT u.id,u.name FROM tournament_players p JOIN users u ON u.id=p.user_id WHERE tournament_id=? ORDER BY u.name").bind(tid).all()).results;
+          const guestReady=await guestSchemaReady(db);
+          if(path.length===5 && method==="GET"){
+            const players=await tournamentPlayers(db,tid,guestReady);
             const rounds=(await db.prepare("SELECT * FROM rounds WHERE tournament_id=? ORDER BY round_number").bind(tid).all()).results;
-            const games=(await db.prepare("SELECT g.*,r.round_number,wu.name white_name,bu.name black_name FROM games g JOIN rounds r ON r.id=g.round_id JOIN users wu ON wu.id=g.white_id LEFT JOIN users bu ON bu.id=g.black_id WHERE r.tournament_id=? ORDER BY r.round_number,g.id").bind(tid).all()).results;
-            return json({tournament:t,players,rounds,games,standings:await standings(db,tid)});
+            const games=await tournamentGames(db,tid,guestReady);
+            return json({tournament:t,players,rounds,games,standings:await standings(db,tid),guest_ready:guestReady});
           }
           if(role.role!=="moderator")return error("Moderator access required",403);
-          if(path[5]==="players" && method==="POST") {
+          if(path.length===5 && method==="DELETE"){
+            // Cascading delete removes game results, rounds, membership in this
+            // tournament and guest entrants. Club-level attendance is retained.
+            await db.prepare("DELETE FROM tournaments WHERE id=? AND club_id=?").bind(tid,club).run();
+            return json({ok:true});
+          }
+          if(path[5]==="guests" && path.length===6 && method==="POST"){
+            if(!guestReady)return error("Guest players require migration 0004. Run npm run db:migrate:cloud.",503);
+            if(t.status!=="draft")return error("Guest players can be added before the first round.",409);
+            const b=await body(req);
+            let names;
+            try{names=normalizeGuestNames(b.names);}catch(e){return error(e.message,400);}
+            try{
+              const count=await insertGuests(db,tid,names);
+              return json({ok:true,added:count});
+            }catch(e){
+              if(/128 guest players/.test(e.message))return error(e.message,400);
+              if(/UNIQUE constraint failed/i.test(e.message))return error("A guest with that name already exists.",409);
+              throw e;
+            }
+          }
+          if(path[5]==="players" && path.length===6 && method==="POST"){
             if(t.status==="completed")return error("Tournament completed",409);
             if(t.status==="active")return error("Finish the tournament before changing its roster",409);
             const b=await body(req),ids=[...new Set(Array.isArray(b.user_ids)?b.user_ids:[])].filter(x=>typeof x==="string");
@@ -250,37 +281,63 @@ export default {
             await recordAttendance(db,club,t,ids);
             return json({ok:true});
           }
-          if(path[5]==="rounds" && method==="POST") {
+          if(path[5]==="rounds" && path.length===6 && method==="POST"){
             if(t.status==="completed")return error("Tournament completed",409);
-            const existing=(await db.prepare("SELECT g.result FROM games g JOIN rounds r ON r.id=g.round_id WHERE r.tournament_id=?").bind(tid).all()).results;
-            if(existing.some(g=>!g.result))return error("Enter all game results before starting another round",409);
+            const games=await tournamentGames(db,tid,guestReady);
+            if(games.some(g=>!g.result))return error("Enter all game results before starting another round",409);
             const ranked=await standings(db,tid);
             if(ranked.length<2)return error("Add at least two participants",400);
-            const history=(await db.prepare("SELECT g.white_id,g.black_id,g.result FROM games g JOIN rounds r ON r.id=g.round_id WHERE r.tournament_id=?").bind(tid).all()).results;
-            const seen=new Set(history.filter(g=>g.black_id).map(g=>[g.white_id,g.black_id].sort().join(":")));
-            const byes=new Set(history.filter(g=>g.result==="bye").map(g=>g.white_id));
+            const seen=new Set(games.filter(g=>g.black_id).map(g=>[g.white_id,g.black_id].sort().join(":")));
+            const byes=new Set(games.filter(g=>g.result==="bye").map(g=>g.white_id));
             const rn=(await db.prepare("SELECT coalesce(max(round_number),0)+1 n FROM rounds WHERE tournament_id=?").bind(tid).first()).n,id=uid();
             const pairs=pairPlayers(ranked,seen,byes);
-            await recordAttendance(db,club,t,ranked.map(p=>p.id));
+            // Guests are not registered members, so they are not written into
+            // member attendance; their game results are tracked normally.
+            await recordAttendance(db,club,t,ranked.filter(p=>!p.guest).map(p=>p.id));
+            const inserts=guestReady?
+              pairs.map(p=>db.prepare(
+                "INSERT INTO tournament_games_v2(id,round_id,white_user_id,white_guest_id,black_user_id,black_guest_id,result) VALUES(?,?,?,?,?,?,?)"
+              ).bind(uid(),id,...newGameBindings(p))):
+              pairs.map(p=>db.prepare(
+                "INSERT INTO games(id,round_id,white_id,black_id,result) VALUES(?,?,?,?,?)"
+              ).bind(uid(),id,p.white_id,p.black_id,p.result));
             await db.batch([
               db.prepare("INSERT INTO rounds(id,tournament_id,round_number) VALUES(?,?,?)").bind(id,tid,rn),
-              ...pairs.map(p=>db.prepare("INSERT INTO games(id,round_id,white_id,black_id,result) VALUES(?,?,?,?,?)").bind(uid(),id,p.white_id,p.black_id,p.result)),
+              ...inserts,
               db.prepare("UPDATE tournaments SET status='active' WHERE id=?").bind(tid)
             ]);
             return json({round_number:rn});
           }
-          if(path[5]==="games" && path[6] && method==="POST") {
-            const b=await body(req), result=b.result;
+          if(path[5]==="games" && path[6] && method==="POST"){
+            const b=await body(req),result=b.result;
             if(!["1-0","0-1","1/2-1/2"].includes(result))return error("Invalid game result");
             if(t.status!=="active")return error("Tournament not active",409);
-            const game=await db.prepare("SELECT g.* FROM games g JOIN rounds r ON r.id=g.round_id WHERE g.id=? AND r.tournament_id=?").bind(path[6],tid).first();
-            if(!game || !game.black_id)return error("Game not found",404);
-            await db.prepare("UPDATE games SET result=? WHERE id=?").bind(result,game.id).run();
-            return json({ok:true});
+            const gid=path[6];
+            const old=await db.prepare(
+              "SELECT g.id,g.black_id FROM games g JOIN rounds r ON r.id=g.round_id WHERE g.id=? AND r.tournament_id=?"
+            ).bind(gid,tid).first();
+            if(old){
+              if(!old.black_id)return error("Bye games cannot be changed.",409);
+              await db.prepare("UPDATE games SET result=? WHERE id=?").bind(result,gid).run();
+              return json({ok:true});
+            }
+            if(guestReady){
+              const newer=await db.prepare(
+                "SELECT g.id,g.black_user_id,g.black_guest_id FROM tournament_games_v2 g JOIN rounds r ON r.id=g.round_id WHERE g.id=? AND r.tournament_id=?"
+              ).bind(gid,tid).first();
+              if(newer){
+                if(!newer.black_user_id&&!newer.black_guest_id)return error("Bye games cannot be changed.",409);
+                await db.prepare("UPDATE tournament_games_v2 SET result=? WHERE id=?").bind(result,gid).run();
+                return json({ok:true});
+              }
+            }
+            return error("Game not found",404);
           }
-          if(path[5]==="complete" && method==="POST") {
-            const missing=await db.prepare("SELECT count(*) n FROM games g JOIN rounds r ON r.id=g.round_id WHERE r.tournament_id=? AND g.result IS NULL").bind(tid).first();
-            if(missing.n)return error("Record all results first",409);
+          if(path[5]==="complete" && path.length===6 && method==="POST"){
+            const rounds=await db.prepare("SELECT count(*) AS n FROM rounds WHERE tournament_id=?").bind(tid).first();
+            if(!rounds.n)return error("Start at least one round first.",409);
+            const games=await tournamentGames(db,tid,guestReady);
+            if(games.some(g=>g.result===null))return error("Record all results first",409);
             await db.prepare("UPDATE tournaments SET status='completed' WHERE id=?").bind(tid).run();
             return json({ok:true});
           }
