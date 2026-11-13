@@ -256,7 +256,10 @@ function modal(){
    button("Select all","select-all-start","btn text")+button("Clear","select-none-start","btn text")+'</span></div>'+
    '<div class="roster-box">'+(state.data?.members.length?state.data.members.map(p=>
       '<label class="selectrow"><input type="checkbox" class="start-player" value="'+p.id+'"><span>'+esc(p.name)+'</span></label>').join(""):empty("Create or invite club members first."))+
-   '</div><p class="modal-hint" style="margin-top:7px">You can also add members before the first round.</p></div>';
+   '</div><p class="modal-hint" style="margin-top:7px">You can also add members before the first round.</p></div>'+
+   (state.data?.guest_ready!==false?'<label>Guest players (no accounts needed)'+
+     '<textarea class="field" name="guest_names" rows="3" maxlength="7000" placeholder="One guest name per line"></textarea></label>':
+     '<p class="modal-hint">Guest players will be available after database migration 0004.</p>');
  return '<div class="modalcover"><section class="modal" role="dialog" aria-modal="true" aria-label="'+title+'">'+
  '<div class="modal-heading"><h2>'+title+'</h2><button class="close" type="button" aria-label="Close" data-action="close-modal">×</button></div>'+
  '<form id="modalform" class="form">'+fields+'<div class="form-actions">'+button("Cancel","close-modal","btn ghost")+
@@ -358,6 +361,18 @@ function bind(){
    } else if(a==="delete-message"){
      if(!confirm("Delete this message from the club board?"))return;
      action(async()=>{await api("clubs/"+state.club+"/messages/"+id,{method:"DELETE"});});
+   } else if(a==="delete-tournament"){
+     const selected=state.data?.tournaments.find(t=>t.id===id)||
+       (state.tdata?.tournament.id===id?state.tdata.tournament:null);
+     if(!selected)return;
+     if(!confirm('Permanently delete "'+selected.title+'"? All rounds, pairings, and results will be lost. This cannot be undone.'))return;
+     action(async()=>{
+       await api("clubs/"+state.club+"/tournaments/"+id,{method:"DELETE"});
+       if(state.tournament===id){
+         state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
+         state.tab="tournaments";
+       }
+     });
    } else if(a==="tournament"){
      action(async()=>{
        state.tournament=id;state.viewRound=null;state.expandedGame=null;
@@ -387,6 +402,13 @@ function bind(){
        const ids=[...document.querySelectorAll(".playerpick:checked")].map(x=>x.value);
        if(!ids.length)throw Error("Select at least one player.");
        await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/players",{user_ids:ids});
+       state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
+     });
+   } else if(a==="add-guests"){
+     const names=$("guest-player-names")?.value||"";
+     if(!names.trim()){state.notice="Enter at least one guest player name.";render();return;}
+     action(async()=>{
+       await post("clubs/"+state.club+"/tournaments/"+state.tournament+"/guests",{names});
        state.tdata=await api("clubs/"+state.club+"/tournaments/"+state.tournament);
      });
    } else if(a==="new-round"){
@@ -422,6 +444,7 @@ function bind(){
        result=await post("clubs/"+state.club+"/tournaments",{title:b.title,event_date:b.event_date});
        state.tournament=result.id;state.viewRound=null;state.expandedGame=null;
        if(ids.length)await post("clubs/"+state.club+"/tournaments/"+result.id+"/players",{user_ids:ids});
+       if(String(b.guest_names||"").trim())await post("clubs/"+state.club+"/tournaments/"+result.id+"/guests",{names:b.guest_names});
        state.tdata=await api("clubs/"+state.club+"/tournaments/"+result.id);
      }
      state.clubs=(await api("clubs")).clubs;state.modal=null;
