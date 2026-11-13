@@ -345,3 +345,27 @@ td.player-name{font-weight:600}
 @media print{
  .message-actions,.message-board .btn{display:none}
 }
+
+/* Tournament status and guest roster refinements */
+.tournament-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}
+.btn.danger-ghost{background:transparent;color:#9b3733;border:1px solid #dfc1be}
+.btn.danger-ghost:hover:not(:disabled){background:#fff3f2;border-color:#c47d78;color:#862d29}
+.pill.draft{background:#f7f8f6;color:#5e675e;border-color:#d6ddd6}
+.pill.active{background:#eaf5ed;color:#285d3b;border-color:#bfdcc5}
+.pill.completed{background:#eef2f5;color:#3c576e;border-color:#d4dfe8}
+.roster-submit{margin-top:11px}
+.guest-player-entry{border-top:1px solid var(--line-soft);margin-top:17px;padding-top:16px;display:flex;flex-direction:column;gap:10px}
+.guest-label{display:block;font-size:11px;color:var(--subtle);font-weight:550}
+.guest-names{min-height:82px;resize:vertical;line-height:1.45}
+.guest-player-entry .btn{align-self:flex-start}
+.guest-player-entry .panel-note{line-height:1.5}
+.standings-guest{display:inline-block;font-size:10px;font-weight:550;color:var(--subtle);padding-left:8px;vertical-align:middle}
+.roster-line .pill{font-size:10px}
+.workspace-title .round-actions{justify-content:flex-end}
+button.back{border:0;background:transparent;color:var(--primary);padding:0;text-align:left}
+button.back:hover{text-decoration:underline}
+@media(max-width:610px){
+ .tournament-actions{gap:5px}
+ .tournament-actions .btn{padding:5px 8px}
+ .workspace-title .round-actions{justify-content:flex-start}
+}
