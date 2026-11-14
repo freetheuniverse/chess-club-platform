@@ -173,25 +173,29 @@ function tournamentDetail(){
    if(g.result==="1/2-1/2"){if(black)black.draws++;if(white)white.draws++;}
  }
  function gameRow(g,index){
-   if(!g.black_id)return '<div class="bye-row"><span class="board-number">'+(index+1)+'</span><strong>'+esc(g.white_name)+'</strong><span class="pill">Bye · 1 point</span></div>';
+   if(!g.black_id)return '<div class="bye-row">'+
+     '<span class="board-number">'+(index+1)+'</span><strong class="player-slot white-player">'+esc(g.white_name)+'</strong>'+
+     '<span class="center-cell"><span class="pill">Bye · 1 point</span></span>'+
+     '<span class="player-slot black-player bye-placeholder">—</span></div>';
    const result=g.result==="1-0"?"White wins":g.result==="0-1"?"Black wins":g.result==="1/2-1/2"?"Draw":"";
    const expanded=state.expandedGame===g.id;
    const center=result?'<span class="result-chip">'+result+'</span>'+
        (can&&!completed?'<button type="button" class="change-result" data-action="result-toggle:'+g.id+'">Change result</button>':''):
        can&&!completed?'<button type="button" class="vs-toggle" aria-expanded="'+expanded+'" data-action="result-toggle:'+g.id+'">VS</button>':
        '<span class="muted">VS</span>';
-   const picker=can&&!completed&&expanded?'<div class="match-result">'+
+   const picker=can&&!completed&&expanded?'<div class="match-result"><div class="match-result-actions">'+
      button("White wins","result:"+g.id+":1-0","btn ghost small")+
      button("Draw","result:"+g.id+":1/2-1/2","btn ghost small")+
-     button("Black wins","result:"+g.id+":0-1","btn ghost small")+'</div>':'';
+     button("Black wins","result:"+g.id+":0-1","btn ghost small")+'</div></div>':'';
    return '<div class="match"><div class="match-row"><span class="board-number">'+(index+1)+'</span>'+
-     '<span class="player-slot">'+esc(g.white_name)+'</span><div class="center-cell">'+center+'</div>'+
-     '<span class="player-slot">'+esc(g.black_name)+'</span></div>'+picker+'</div>';
+     '<span class="player-slot white-player">'+esc(g.white_name)+'</span><div class="center-cell">'+center+'</div>'+
+     '<span class="player-slot black-player">'+esc(g.black_name)+'</span></div>'+picker+'</div>';
  }
  const roundNav=roundCount>1?'<div class="round-nav no-print">'+
    '<button type="button" class="btn ghost small" aria-label="Previous round" data-action="round:-1" '+(roundNumber<=1?'disabled':'')+'>‹</button>'+
    '<button type="button" class="btn ghost small" aria-label="Next round" data-action="round:1" '+(roundNumber>=roundCount?'disabled':'')+'>›</button></div>':'';
- const pairings=roundCount?'<div class="match-header"><span>Board</span><span>White</span><span class="center-cell">Result</span><span>Black</span></div>'+
+ const pairings=roundCount?'<div class="match-header"><span class="match-header-board">Board</span>'+
+ '<span class="match-header-white">White</span><span class="center-cell">Result</span><span class="match-header-black">Black</span></div>'+
  visibleGames.map(gameRow).join(""):empty("Add at least two players, then select Start round 1.");
  const standings=d.standings.map((p,i)=>{
    const c=counts.get(p.id)||{wins:0,draws:0,losses:0};
