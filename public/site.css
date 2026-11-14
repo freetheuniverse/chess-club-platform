@@ -369,3 +369,79 @@ button.back:hover{text-decoration:underline}
  .tournament-actions .btn{padding:5px 8px}
  .workspace-title .round-actions{justify-content:flex-start}
 }
+
+
+/* Tournament pairing symmetry: equal White/Black areas around a fixed result.
+   The same grid powers headers, games, byes and expanded result choices. */
+.match-header,.match-row,.match-result,.bye-row{
+  --pairing-columns:42px minmax(0,1fr) 132px minmax(0,1fr);
+  display:grid;
+  grid-template-columns:var(--pairing-columns);
+  align-items:center;
+  column-gap:12px;
+  box-sizing:border-box;
+}
+.match-header{
+  padding:13px 16px;
+}
+.match-row{
+  padding:13px 16px;
+  min-height:62px;
+}
+.match-header-board,.match-header-white,.match-header-black{
+  min-width:0;
+}
+.match-header-board,.board-number{text-align:center}
+.match-header-white{text-align:right}
+.match-header-black{text-align:left}
+.player-slot.white-player{text-align:right}
+.player-slot.black-player{text-align:left}
+.match-header .center-cell,.match-row .center-cell,.bye-row .center-cell{
+  width:100%;
+  min-width:0;
+  justify-self:center;
+  text-align:center;
+}
+.match-row .vs-toggle{margin-inline:auto;display:block}
+.match-result{
+  padding:0 16px 13px;
+}
+.match-result-actions{
+  grid-column:2 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:8px;
+  min-width:0;
+}
+.match-result-actions .btn{
+  min-height:31px;
+  white-space:nowrap;
+}
+.bye-row{
+  padding:13px 16px;
+  min-height:62px;
+  border-bottom:1px solid var(--line-soft);
+}
+.bye-row .pill{display:inline-block;white-space:nowrap}
+.bye-placeholder{color:var(--subtle);font-weight:400}
+@media(max-width:860px){
+  .match-header,.match-row,.match-result,.bye-row{
+    --pairing-columns:31px minmax(0,1fr) 96px minmax(0,1fr);
+    column-gap:8px;
+  }
+}
+@media(max-width:520px){
+  .match-header,.match-row,.match-result,.bye-row{
+    --pairing-columns:22px minmax(0,1fr) 74px minmax(0,1fr);
+    column-gap:6px;
+  }
+  .match-header,.match-row,.bye-row{padding-left:9px;padding-right:9px}
+  .match-result{padding:0 9px 12px}
+  .match-header{font-size:9px}
+  .player-slot{font-size:12px}
+  .match-result-actions{gap:5px}
+  .match-result-actions .btn{padding:5px 7px;font-size:11px}
+  .result-chip,.change-result{font-size:10px}
+  .bye-row .pill{font-size:9px;padding:3px 5px}
+}
