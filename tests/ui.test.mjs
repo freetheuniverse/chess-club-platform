@@ -93,8 +93,13 @@ test("tournament shows left roster, right pairings and center VS controls",async
  assert.match(html,/Player roster/);
  assert.match(html,/Round 1/);
  assert.match(html,/data-action="result-toggle:g1"/);
+ assert.match(html,/match-header-white/);
+ assert.match(html,/match-header-black/);
+ assert.match(html,/player-slot white-player/);
+ assert.match(html,/player-slot black-player/);
  assert.match(html,/Standings/);
  app.state.expandedGame="g1";app.render();html=get("app").innerHTML;
+ assert.match(html,/match-result-actions/);
  for(const result of ["1-0","0-1","1\/2-1\/2"])assert.ok(html.includes("data-action=\"result:g1:"+result+"\""));
 });
 
@@ -241,4 +246,32 @@ test("new tournament dialog accepts guest names without creating user accounts",
  assert.match(html,/name="guest_names"/);
  assert.match(html,/no accounts needed/);
  assert.doesNotMatch(html,/Guest email|Guest password/);
+});
+
+test("bye rows use the same centered pairing layout as normal games",async()=>{
+ const {get,app,members}=startApp();await app.load();
+ app.state.tournament="t-bye";
+ app.state.tdata={
+   tournament:{id:"t-bye",title:"Bye round",event_date:"2026-11-11",status:"active"},
+   players:members,
+   rounds:[{id:"r-bye",round_number:1}],
+   games:[{id:"g-bye",round_number:1,white_id:"p1",black_id:null,white_name:"Alex Chen",black_name:null,result:"bye"}],
+   standings:members.map(m=>({...m,points:0}))
+ };
+ app.render();
+ const html=get("app").innerHTML;
+ assert.match(html,/class="bye-row"/);
+ assert.match(html,/class="player-slot white-player"/);
+ assert.match(html,/class="player-slot black-player bye-placeholder"/);
+ assert.match(html,/Bye · 1 point/);
+});
+
+test("pairing grid assigns equal White and Black areas and centers result actions",()=>{
+ const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
+ assert.match(css,/--pairing-columns:42px minmax\(0,1fr\) 132px minmax\(0,1fr\)/);
+ assert.match(css,/\.match-header-white\{text-align:right\}/);
+ assert.match(css,/\.match-header-black\{text-align:left\}/);
+ assert.match(css,/\.player-slot\.white-player\{text-align:right\}/);
+ assert.match(css,/\.player-slot\.black-player\{text-align:left\}/);
+ assert.match(css,/\.match-result-actions\{[^}]*grid-column:2 \/ -1;[^}]*justify-content:center;/s);
 });
