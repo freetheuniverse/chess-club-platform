@@ -54,12 +54,12 @@ function shell(content){
    (joined.length?'<div class="side-group-label">Joined</div><div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
    (!state.clubs.length?'<p class="side-empty">No clubs yet. Create or join one to get started.</p>':'');
  const workspace=currentClub?
-   '<section class="sidebar-panel sidebar-workspace" aria-label="Club workspace">'+
-     '<div class="side-workspace-heading"><div class="side-section-label">Club workspace</div></div>'+
+   '<section class="sidebar-workspace" aria-label="Club workspace">'+
+     '<div class="side-workspace-heading sidebar-heading-bar"><div class="side-section-label">Club workspace</div></div>'+
      '<nav class="side-nav" aria-label="Sections for '+esc(currentClub.name)+'">'+pageLinks+'</nav>'+
    '</section>':
-   '<section class="sidebar-panel sidebar-workspace" aria-label="Club workspace">'+
-     '<div class="side-workspace-heading"><div class="side-section-label">Club workspace</div></div>'+
+   '<section class="sidebar-workspace" aria-label="Club workspace">'+
+     '<div class="side-workspace-heading sidebar-heading-bar"><div class="side-section-label">Club workspace</div></div>'+
      '<p class="side-empty side-workspace-empty">Choose a club above to open its workspace.</p>'+
    '</section>';
  return '<div class="shell"><header class="topbar"><div class="topbar-inner">'+
@@ -69,8 +69,8 @@ function shell(content){
    '<div class="app-layout">'+
    (state.sidebarOpen?'<button type="button" class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Close navigation"></button>':'')+
    '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
-   '<nav class="side-clubs sidebar-panel" aria-label="Your clubs">'+
-     '<div class="side-section-heading"><span class="side-section-label">Your clubs</span></div>'+
+   '<nav class="side-clubs" aria-label="Your clubs">'+
+     '<div class="side-section-heading sidebar-heading-bar"><span class="side-section-label">Your clubs</span></div>'+
      clubGroups+
      '<button type="button" class="side-link side-join" data-action="add-club">'+sideIcon("plus")+'<span>Add a Club</span></button>'+
    '</nav>'+workspace+
