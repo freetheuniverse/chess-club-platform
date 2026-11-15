@@ -54,12 +54,12 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  const html=get("app").innerHTML;
  assert.match(html,/Chess Club Manager/);
  assert.match(html,/class="sidebar /);
- assert.match(html,/Puzzle Assignments/);
+ assert.match(html,/Assignments/);
  assert.match(html,/Your clubs/);
  assert.doesNotMatch(html,/side-group-label">Managed/);
  assert.match(html,/side-group-label">Joined/);
  assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
- assert.ok(html.indexOf("Club workspace") < html.indexOf("Puzzle Assignments"),"Workspace links should follow the selected club");
+ assert.ok(html.indexOf("Club workspace") < html.indexOf("Assignments"),"Workspace links should follow the selected club");
  assert.doesNotMatch(html,/side-workspace-club/);
  assert.doesNotMatch(html,/class="side-add"/);
  assert.match(html,/data-action="add-club"/);
