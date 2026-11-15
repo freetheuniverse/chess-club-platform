@@ -195,9 +195,9 @@ Tournament status labels are **Not started** (no rounds), **In progress** (at le
 
 ## Visual design and navigation
 
-The website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. **Your clubs** appears before the selected club's workspace pages. The standalone "Managed" label is removed; the optional "Joined" label distinguishes clubs in which the account is a student member. Both the centered **+** control and **Add a Club** open a chooser offering **Create a club** or **Join a club**.
+The Chess Club Manager uses a restrained, SaaS-style navigation architecture influenced by familiar workspace applications such as Notion and Linear. A **soft-gray sidebar** contains the brand, a single **club switcher** showing the active club and account role, an immediately visible navigation list (Overview, Tournaments, Assignments, Members, Attendance), and a lower **Add a Club** action. Green is reserved for active navigation and actionable highlights rather than filling the entire sidebar.
 
-The active club appears under **Club workspace**, with Overview, Tournaments, Assignments, Members, and Attendance below it. Switching clubs resets stale tournament and puzzle selection. On narrow screens the sidebar is a toggleable drawer.
+Selecting the club switcher opens a menu of managed and joined clubs, with **Add a Club** at the bottom. Choosing a club resets stale tournament and assignment navigation. The Add a Club chooser still offers **Create a club** and **Join a club**. The workspace content now has a compact breadcrumb-style header with user information, while the sidebar opens as a drawer on mobile. Escape closes the club menu or mobile navigation. No new database tables are required for this visual redesign.
 
 The **Overview** now puts the club's **Message board** on the left and **Quick reference** on the right. The quick-reference table shows members, tournaments, tournaments in progress, and attendance dates; below it are clickable tournament names that open the corresponding pairing workspace. The old large metrics strip, attendance summary card, and recent-tournaments table are removed. The club name is displayed clearly above the page title.
 
