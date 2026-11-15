@@ -155,13 +155,15 @@ This dependency replaces the earlier MIT board. Cloudflare's current build image
 
 ## Assignments workspace
 
-The former **Puzzle Assignments** section is now **Assignments**, with a classwork-style activity feed, assignment cards, due-date groups, and **All / To do / Completed** filters. It is inspired by classroom learning platforms, but uses our own visual design and branding.
+The former **Puzzle Assignments** section is now **Assignments**, with two views. **Gradebook** (default for moderators) resembles Google Classroom's Grades screen: members are rows, assignments are horizontally scrollable columns, member names remain visible while scrolling, and each cell shows actual puzzle completion or submission status. It supports last-name sorting, member search, and a past-due-work filter. **Classwork** preserves the activity feed, due-date groups, and All / In progress / Completed filters for moderators; members see Classwork with their own To do / Completed filters. Both views use the Chess Club Manager's green visual language.
 
 Moderators choose **+ Create** to publish one of three functioning activity types:
 
 - **Chess puzzles:** The existing Lichess puzzle assignment system is unchanged; assigned members solve on the Chessground board, and the Worker verifies their answers.
 - **Study material:** A moderator posts instructions and/or an HTTPS reading/video link, chooses members, and sets an optional due date. Members mark the material completed.
 - **Written response:** A moderator posts a prompt, optionally attaches a resource link, and assigns it to selected registered members. Students type up to 3,000 characters, submit, and may update their response. Moderators see per-member submission status and the submitted text.
+
+The read-only gradebook is available only to club moderators and uses existing puzzle and assignment tables. It never treats an unassigned member as missing work, and it distinguishes past-due work from not-yet-due work. The first row shows **class completion counts**, not class average grades. It does not assign or fabricate numeric grades: puzzle cells report solved/total, study work reports completion, and written work reports whether it was turned in. No additional database migration is required to enable this view, but migration 0005 remains necessary for general assignment submissions.
 
 Only club moderators can create/delete general assignments. A member may view and submit only assignments targeted to that account. General assignment submissions are stored separately from public source code. The due date is displayed, **not enforced as a submission cutoff**. No file uploads, grades, rubric scoring, or notifications are included in this first iteration.
 
