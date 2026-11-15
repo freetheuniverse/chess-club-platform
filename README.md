@@ -153,6 +153,29 @@ This repository is public and contains its own GPL license. The website links to
 
 This dependency replaces the earlier MIT board. Cloudflare's current build image runs Node 24; local development should also use Node 24 or newer.
 
+## Assignments workspace
+
+The former **Puzzle Assignments** section is now **Assignments**, with a classwork-style activity feed, assignment cards, due-date groups, and **All / To do / Completed** filters. It is inspired by classroom learning platforms, but uses our own visual design and branding.
+
+Moderators choose **+ Create** to publish one of three functioning activity types:
+
+- **Chess puzzles:** The existing Lichess puzzle assignment system is unchanged; assigned members solve on the Chessground board, and the Worker verifies their answers.
+- **Study material:** A moderator posts instructions and/or an HTTPS reading/video link, chooses members, and sets an optional due date. Members mark the material completed.
+- **Written response:** A moderator posts a prompt, optionally attaches a resource link, and assigns it to selected registered members. Students type up to 3,000 characters, submit, and may update their response. Moderators see per-member submission status and the submitted text.
+
+Only club moderators can create/delete general assignments. A member may view and submit only assignments targeted to that account. General assignment submissions are stored separately from public source code. The due date is displayed, **not enforced as a submission cutoff**. No file uploads, grades, rubric scoring, or notifications are included in this first iteration.
+
+### Required one-time D1 migration
+
+Cloudflare deploys website code automatically but does not automatically apply database migrations. After the next deploy, run from your local Chess Club project:
+
+```bat
+git pull origin dev
+npm run db:migrate:cloud
+```
+
+The new `0005_general_assignments.sql` creates three additive tables and leaves existing club, tournament, attendance, message, and Lichess puzzle records intact. Until applied, the Assignments page still shows existing puzzles and displays a notice explaining that study/written activities need setup.
+
 ## Account-free tournament guests and tournament management
 
 Moderators can enter guest player names directly during **New tournament** or in a tournament's **Player roster** before round 1. Guest players need **no email, account or password**. They are eligible for mixed guest/member pairings, byes, results and standings. Guests are tournament-only: they are not added to the club's authenticated member directory, puzzle assignments, or member attendance records. A moderator can remove a guest before the first round.
@@ -174,7 +197,7 @@ Tournament status labels are **Not started** (no rounds), **In progress** (at le
 
 The website uses a compact SHJC-inspired layout with a white title bar branded **Chess Club Manager** (no logo) and a dark-green navigation sidebar. **Your clubs** appears before the selected club's workspace pages. The standalone "Managed" label is removed; the optional "Joined" label distinguishes clubs in which the account is a student member. Both the centered **+** control and **Add a Club** open a chooser offering **Create a club** or **Join a club**.
 
-The active club appears under **Club workspace**, with Overview, Tournaments, Puzzle Assignments, Members, and Attendance below it. Switching clubs resets stale tournament and puzzle selection. On narrow screens the sidebar is a toggleable drawer.
+The active club appears under **Club workspace**, with Overview, Tournaments, Assignments, Members, and Attendance below it. Switching clubs resets stale tournament and puzzle selection. On narrow screens the sidebar is a toggleable drawer.
 
 The **Overview** now puts the club's **Message board** on the left and **Quick reference** on the right. The quick-reference table shows members, tournaments, tournaments in progress, and attendance dates; below it are clickable tournament names that open the corresponding pairing workspace. The old large metrics strip, attendance summary card, and recent-tournaments table are removed. The club name is displayed clearly above the page title.
 
