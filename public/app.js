@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,generalAssignments:null,generalReady:false,gradebook:null,assignmentView:"gradebook",gradebookSort:"az",gradebookFilter:"all",gradebookSearch:"",activeGeneralAssignment:null,generalDetail:null,assignmentFilter:"all",showCreateMenu:false,showGeneralForm:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false,clubMenuOpen:false};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,generalAssignments:null,generalReady:false,gradebook:null,assignmentView:"gradebook",gradebookSort:"last",gradebookFilter:"all",gradebookSearch:"",activeGeneralAssignment:null,generalDetail:null,assignmentFilter:"all",showCreateMenu:false,showGeneralForm:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false,clubMenuOpen:false};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -375,7 +375,7 @@ function bind(){
      action(async()=>{
        state.club=id;state.sidebarOpen=false;state.clubMenuOpen=false;state.tab="overview";
        state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
-       state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.gradebook=null;state.gradebookSearch="";state.gradebookSort="az";state.gradebookFilter="all";state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;
+       state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.gradebook=null;state.gradebookSearch="";state.gradebookSort="last";state.gradebookFilter="all";state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;
      });
    } else if(a==="add-club"||a==="new-club"||a==="join-club"||a==="new-tournament"||a==="new-message"){
      state.modal=a;state.notice="";state.sidebarOpen=false;state.clubMenuOpen=false;render();
@@ -384,7 +384,7 @@ function bind(){
    } else if(a==="copy-code"){
      navigator.clipboard?.writeText(state.data.club.join_code).then(()=>{state.notice="Join code copied.";render()});
    } else if(a==="logout"){
-     action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.gradebook=null;state.gradebookSearch="";state.gradebookSort="az";state.gradebookFilter="all";state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;});
+     action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.gradebook=null;state.gradebookSearch="";state.gradebookSort="last";state.gradebookFilter="all";state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;});
    } else if(a==="pin-message"){
      action(async()=>{await post("clubs/"+state.club+"/messages/"+id+"/pin");});
    } else if(a==="delete-message"){
