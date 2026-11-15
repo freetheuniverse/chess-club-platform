@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,generalAssignments:null,generalReady:false,activeGeneralAssignment:null,generalDetail:null,assignmentFilter:"all",showCreateMenu:false,showGeneralForm:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,generalAssignments:null,generalReady:false,activeGeneralAssignment:null,generalDetail:null,assignmentFilter:"all",showCreateMenu:false,showGeneralForm:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false,clubMenuOpen:false};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -36,46 +36,68 @@ function sideIcon(name){
  return '<svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(shapes[name]||shapes.club)+'</svg>';
 }
 function shell(content){
+ // One active club, one navigation tree. This follows the same workspace
+ // hierarchy used by modern project-management and team collaboration apps.
  const pages=[["overview","Overview"],["tournaments","Tournaments"],["puzzles","Assignments"],["members","Members"],["attendance","Attendance"]];
- const managed=state.clubs.filter(c=>c.role==="moderator");
- const joined=state.clubs.filter(c=>c.role!=="moderator");
  const currentClub=state.clubs.find(c=>c.id===state.club);
- const pageLinks=pages.map(([key,title])=>
-   '<button type="button" class="side-link '+(state.tab===key?"active":"")+'" data-action="tab:'+key+'"'+
-   (state.tab===key?' aria-current="page"':'')+'>'+sideIcon(key)+'<span>'+title+'</span></button>'
+ const section=pages.find(p=>p[0]===state.tab)?.[1]||"Overview";
+ const clubName=currentClub?.name||"Select a club";
+ const avatar=name=>esc((String(name||"?").trim().split(/\\s+/).slice(0,2).map(x=>x[0]||"").join("")||"?").toUpperCase());
+ const clubOptions=state.clubs.map(c=>
+   '<button type="button" class="cm-club-option '+(c.id===state.club?"selected":"")+'" data-action="club:'+esc(c.id)+'"'+
+   (c.id===state.club?' aria-current="true"':'')+'>'+
+     '<span class="cm-club-avatar" aria-hidden="true">'+avatar(c.name)+'</span>'+
+     '<span class="cm-club-option-info"><strong>'+esc(c.name)+'</strong>'+
+       '<small>'+(c.role==="moderator"?"Managed by you":"Member")+'</small></span>'+
+     (c.id===state.club?'<span class="cm-selected-tick" aria-hidden="true">✓</span>':'')+
+   '</button>'
  ).join("");
- const clubLinks=items=>items.map(c=>
-   '<button type="button" class="side-club '+(state.club===c.id?"active":"")+'" data-action="club:'+esc(c.id)+'" '+
-   (state.club===c.id?'aria-current="true" ':'')+'title="'+esc(c.name)+'">'+
-   '<span class="side-club-dot" aria-hidden="true"></span><span class="side-club-name">'+esc(c.name)+'</span></button>'
- ).join("");
- const clubGroups=
-   (managed.length?'<div class="side-club-list">'+clubLinks(managed)+'</div>':'')+
-   (joined.length?'<div class="side-group-label">Joined</div><div class="side-club-list">'+clubLinks(joined)+'</div>':'')+
-   (!state.clubs.length?'<p class="side-empty">No clubs yet. Create or join one to get started.</p>':'');
- const workspace=currentClub?
-   '<section class="sidebar-workspace" aria-label="Club workspace">'+
-     '<div class="side-workspace-heading sidebar-heading-bar"><div class="side-section-label">Club workspace</div></div>'+
-     '<nav class="side-nav" aria-label="Sections for '+esc(currentClub.name)+'">'+pageLinks+'</nav>'+
-   '</section>':
-   '<section class="sidebar-workspace" aria-label="Club workspace">'+
-     '<div class="side-workspace-heading sidebar-heading-bar"><div class="side-section-label">Club workspace</div></div>'+
-     '<p class="side-empty side-workspace-empty">Choose a club above to open its workspace.</p>'+
-   '</section>';
- return '<div class="shell"><header class="topbar"><div class="topbar-inner">'+
-   '<div class="identity"><button type="button" class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Toggle navigation" aria-controls="sidebar-nav" aria-expanded="'+!!state.sidebarOpen+'"><span aria-hidden="true">☰</span></button>'+
-   '<span class="brand">Chess Club Manager</span></div>'+
-   '<div class="header-actions"><span class="header-user">'+esc(state.user?.name||"")+'</span>'+button("Sign out","logout","btn text")+'</div></div></header>'+
-   '<div class="app-layout">'+
+ const clubMenu=state.clubMenuOpen?
+   '<div class="cm-club-menu" id="club-switcher-menu" role="group" aria-label="Switch clubs">'+
+     '<div class="cm-menu-caption">Your clubs</div>'+
+     '<div class="cm-club-options">'+(clubOptions||'<p class="cm-menu-empty">No clubs yet</p>')+'</div>'+
+     '<div class="cm-menu-footer"><button type="button" class="cm-menu-add" data-action="add-club">'+
+       sideIcon("plus")+' Add a Club</button></div>'+
+   '</div>':"";
+ const navigation=currentClub?
+   '<nav class="cm-nav" aria-label="Club pages">'+
+     '<div class="cm-nav-caption">CLUB WORKSPACE</div>'+
+     pages.map(([key,title])=>
+       '<button type="button" class="cm-nav-link '+(state.tab===key?"active":"")+'" data-action="tab:'+key+'"'+
+       (state.tab===key?' aria-current="page"':'')+'>'+sideIcon(key)+'<span>'+title+'</span></button>'
+     ).join("")+'</nav>':
+   '<p class="cm-no-club">Choose a club above to open its workspace.</p>';
+ return '<div class="shell cm-shell">'+
    (state.sidebarOpen?'<button type="button" class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Close navigation"></button>':'')+
-   '<aside class="sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
-   '<nav class="side-clubs" aria-label="Your clubs">'+
-     '<div class="side-section-heading sidebar-heading-bar"><span class="side-section-label">Your clubs</span></div>'+
-     clubGroups+
-     '<button type="button" class="side-link side-join" data-action="add-club">'+sideIcon("plus")+'<span>Add a Club</span></button>'+
-   '</nav>'+workspace+
-   '</aside>'+
-   '<main class="main" id="maincontent">'+content+'</main></div></div>';
+   '<div class="app-layout cm-app-layout">'+
+     '<aside class="sidebar cm-sidebar '+(state.sidebarOpen?"is-open":"")+'" id="sidebar-nav" aria-label="Club navigation">'+
+       '<div class="cm-sidebar-brand">Chess Club Manager</div>'+
+       '<div class="cm-workspace-picker">'+
+         '<button type="button" class="cm-club-trigger" data-action="toggle-club-menu" aria-haspopup="true" aria-controls="club-switcher-menu" aria-expanded="'+!!state.clubMenuOpen+'">'+
+           '<span class="cm-club-avatar" aria-hidden="true">'+avatar(clubName)+'</span>'+
+           '<span class="cm-trigger-content"><strong>'+esc(clubName)+'</strong>'+
+             '<small>'+(currentClub?(currentClub.role==="moderator"?"Club manager":"Club member"):"Your workspace")+'</small></span>'+
+           '<svg class="cm-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>'+
+         '</button>'+clubMenu+
+       '</div>'+
+       navigation+
+       '<div class="cm-sidebar-footer">'+
+         '<button type="button" class="cm-footer-action" data-action="add-club">'+sideIcon("plus")+'<span>Add a Club</span></button>'+
+       '</div>'+
+     '</aside>'+
+     '<div class="cm-workspace-shell">'+
+       '<header class="topbar cm-topbar"><div class="topbar-inner cm-topbar-inner">'+
+         '<div class="cm-crumbs">'+
+           '<button type="button" class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Toggle navigation" aria-controls="sidebar-nav" aria-expanded="'+!!state.sidebarOpen+'">☰</button>'+
+           '<span class="cm-mobile-brand">Chess Club Manager</span>'+
+           '<span class="cm-crumb-club">'+esc(clubName)+'</span><span class="cm-crumb-divider" aria-hidden="true">/</span>'+
+           '<strong class="cm-crumb-page">'+esc(section)+'</strong>'+
+         '</div>'+
+         '<div class="header-actions"><span class="header-user">'+esc(state.user?.name||"")+'</span>'+button("Sign out","logout","btn text")+'</div>'+
+       '</div></header>'+
+       '<main class="main cm-main" id="maincontent">'+content+'</main>'+
+     '</div>'+
+   '</div></div>';
 }
 function renderHeader(){
  const name=state.data?.club?.name||"Your clubs";
@@ -341,24 +363,26 @@ function bind(){
  document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{
    const [a,id,value]=el.dataset.action.split(":");
    if(a==="tab"){
-     state.tab=id;state.sidebarOpen=false;state.tournament=null;state.tdata=null;
+     state.tab=id;state.sidebarOpen=false;state.clubMenuOpen=false;state.tournament=null;state.tdata=null;
      state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;
      if(id==="puzzles" && state.club && typeof window!=="undefined" && window.PuzzleModule){
        action(async()=>{await window.PuzzleModule.list(state,api);});
      } else render();
+   } else if(a==="toggle-club-menu"){
+     state.clubMenuOpen=!state.clubMenuOpen;render();
    } else if(a==="toggle-sidebar"){
-     state.sidebarOpen=!state.sidebarOpen;render();
+     state.sidebarOpen=!state.sidebarOpen;state.clubMenuOpen=false;render();
    } else if(a==="club"){
      if(id===state.club){
-       state.sidebarOpen=false;render();return;
+       state.sidebarOpen=false;state.clubMenuOpen=false;render();return;
      }
      action(async()=>{
-       state.club=id;state.sidebarOpen=false;state.tab="overview";
+       state.club=id;state.sidebarOpen=false;state.clubMenuOpen=false;state.tab="overview";
        state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
        state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;
      });
    } else if(a==="add-club"||a==="new-club"||a==="join-club"||a==="new-tournament"||a==="new-message"){
-     state.modal=a;state.notice="";state.sidebarOpen=false;render();
+     state.modal=a;state.notice="";state.sidebarOpen=false;state.clubMenuOpen=false;render();
    } else if(a==="close-modal"){
      state.modal=null;render();
    } else if(a==="copy-code"){
@@ -466,6 +490,11 @@ function bind(){
      }
      state.clubs=(await api("clubs")).clubs;state.modal=null;
    });
+ };
+ document.onkeydown=e=>{
+   if(e.key==="Escape" && (state.clubMenuOpen||state.sidebarOpen)){
+     state.clubMenuOpen=false;state.sidebarOpen=false;render();
+   }
  };
 }
 
