@@ -42,7 +42,7 @@ function shell(content){
  const currentClub=state.clubs.find(c=>c.id===state.club);
  const section=pages.find(p=>p[0]===state.tab)?.[1]||"Overview";
  const clubName=currentClub?.name||"Select a club";
- const avatar=name=>esc((String(name||"?").trim().split(/\\s+/).slice(0,2).map(x=>x[0]||"").join("")||"?").toUpperCase());
+ const avatar=name=>esc((String(name||"?").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("")||"?").toUpperCase());
  const clubOptions=state.clubs.map(c=>
    '<button type="button" class="cm-club-option '+(c.id===state.club?"selected":"")+'" data-action="club:'+esc(c.id)+'"'+
    (c.id===state.club?' aria-current="true"':'')+'>'+
