@@ -42,11 +42,9 @@ function shell(content){
  const currentClub=state.clubs.find(c=>c.id===state.club);
  const section=pages.find(p=>p[0]===state.tab)?.[1]||"Overview";
  const clubName=currentClub?.name||"Select a club";
- const avatar=name=>esc((String(name||"?").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("")||"?").toUpperCase());
  const clubOptions=state.clubs.map(c=>
    '<button type="button" class="cm-club-option '+(c.id===state.club?"selected":"")+'" data-action="club:'+esc(c.id)+'"'+
    (c.id===state.club?' aria-current="true"':'')+'>'+
-     '<span class="cm-club-avatar" aria-hidden="true">'+avatar(c.name)+'</span>'+
      '<span class="cm-club-option-info"><strong>'+esc(c.name)+'</strong>'+
        '<small>'+(c.role==="moderator"?"Managed by you":"Member")+'</small></span>'+
      (c.id===state.club?'<span class="cm-selected-tick" aria-hidden="true">✓</span>':'')+
@@ -74,9 +72,7 @@ function shell(content){
        '<div class="cm-sidebar-brand">Chess Club Manager</div>'+
        '<div class="cm-workspace-picker">'+
          '<button type="button" class="cm-club-trigger" data-action="toggle-club-menu" aria-haspopup="true" aria-controls="club-switcher-menu" aria-expanded="'+!!state.clubMenuOpen+'">'+
-           '<span class="cm-club-avatar" aria-hidden="true">'+avatar(clubName)+'</span>'+
-           '<span class="cm-trigger-content"><strong>'+esc(clubName)+'</strong>'+
-             '<small>'+(currentClub?(currentClub.role==="moderator"?"Club manager":"Club member"):"Your workspace")+'</small></span>'+
+           '<span class="cm-trigger-content"><small>Selected club</small><strong>'+esc(clubName)+'</strong></span>'+
            '<svg class="cm-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>'+
          '</button>'+clubMenu+
        '</div>'+
