@@ -105,7 +105,7 @@ function gradebookView(state){
  const allMembers=data?.members||[];
  const cellMap=new Map((data?.cells||[]).map(c=>[c.user_id+"|"+c.key,c]));
  const getStatus=(m,a)=>gradebookCellStatus(a,cellMap.get(m.id+"|"+a.key),today);
- const lastName=n=>String(n||"").trim().split(/\\s+/).at(-1).toLocaleLowerCase();
+ const lastName=n=>String(n||"").trim().split(/\s+/).at(-1).toLocaleLowerCase();
  const members=[...allMembers].sort((a,b)=>{
    if(state.gradebookSort==="first")return a.name.localeCompare(b.name);
    return lastName(a.name).localeCompare(lastName(b.name))||a.name.localeCompare(b.name);
