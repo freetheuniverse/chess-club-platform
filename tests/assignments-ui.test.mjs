@@ -20,7 +20,7 @@ function renderFixture(){
        assigned:1,submitted:1,my_submitted:1,created_at:"2026-11-11"}
    ],generalReady:true
  };
- return {page:window.PuzzleModule.page,state};
+ return {page:window.PuzzleModule.page,list:window.PuzzleModule.list,state};
 }
 test("Assignments page combines Lichess puzzles with study and written cards",()=>{
  const {page,state}=renderFixture();
@@ -106,4 +106,111 @@ test("Student detail does not show other members submissions or moderator deleti
  assert.match(html,/Mark as complete/);
  assert.doesNotMatch(html,/Delete/);
  assert.doesNotMatch(html,/Member submissions/);
+});
+
+function gradebookFixture(){
+ const {page,list,state}=renderFixture();
+ state.assignmentView="gradebook";
+ state.gradebookSort="last";
+ state.gradebookFilter="all";
+ state.gradebookSearch="";
+ state.gradebook={
+   members:[
+     {id:"u1",name:"Ava Young",role:"student"},
+     {id:"u2",name:"Ben Adams",role:"student"}
+   ],
+   assignments:[
+     {key:"p:p1",id:"p1",kind:"puzzle",title:"Fork practice",due_date:"2020-01-01",total_puzzles:5,created_at:"2026-11-10"},
+     {key:"g:g1",id:"g1",kind:"written",title:"Game reflection",due_date:null,created_at:"2026-11-09"},
+     {key:"g:g2",id:"g2",kind:"study",title:"Chess openings",due_date:"2020-01-01",created_at:"2026-11-08"}
+   ],
+   cells:[
+     {key:"p:p1",user_id:"u1",solved:2,mistakes:1,submitted:false},
+     {key:"p:p1",user_id:"u2",solved:5,mistakes:0,submitted:false},
+     {key:"g:g1",user_id:"u1",submitted:true},
+     {key:"g:g1",user_id:"u2",submitted:false},
+     {key:"g:g2",user_id:"u1",submitted:false}
+   ],
+   general_ready:true
+ };
+ return {page,list,state};
+}
+
+test("Gradebook looks like a Classroom matrix with member rows and assignment columns",()=>{
+ const {page,state}=gradebookFixture();
+ const html=page(state);
+ assert.match(html,/Gradebook/);
+ assert.match(html,/class="gradebook-table"/);
+ assert.match(html,/class="gradebook-member-col gradebook-member-head"/);
+ assert.match(html,/Fork practice/);
+ assert.match(html,/Game reflection/);
+ assert.match(html,/Chess openings/);
+ assert.match(html,/Ava Young/);
+ assert.match(html,/Ben Adams/);
+ assert.match(html,/Class completion/);
+ assert.match(html,/2 \/ 5 solved/);
+ assert.match(html,/5 \/ 5 solved/);
+ assert.match(html,/Turned in/);
+ assert.match(html,/Missing/);
+ assert.match(html,/Not assigned/);
+ assert.match(html,/data-puzzle-action="open:p:p1"/);
+ assert.match(html,/data-puzzle-action="open:g:g1"/);
+ assert.match(html,/data-puzzle-action="view:classwork"/);
+ assert.match(html,/id="gradebook-search"/);
+ assert.match(html,/id="gradebook-sort"/);
+ assert.match(html,/id="gradebook-status-filter"/);
+ assert.match(html,/Completion and submission tracking, not awarded grades/);
+});
+
+test("Gradebook sorts by last name and can filter missing work",()=>{
+ const {page,state}=gradebookFixture();
+ let html=page(state);
+ assert.ok(html.indexOf("Ben Adams")<html.indexOf("Ava Young"));
+ state.gradebookSort="first";
+ html=page(state);
+ assert.ok(html.indexOf("Ava Young")<html.indexOf("Ben Adams"));
+ state.gradebookFilter="missing";
+ html=page(state);
+ assert.match(html,/Ava Young/);
+ assert.doesNotMatch(html,/class="gradebook-member-name">Ben Adams/);
+});
+
+test("Gradebook search keeps safe HTML and correctly flags unassigned members",()=>{
+ const {page,state}=gradebookFixture();
+ state.gradebook.members[0].name="<script>alert(1)</script>";
+ state.gradebookSearch="other";
+ const html=page(state);
+ assert.doesNotMatch(html,/<script>alert\(1\)<\/script>/);
+ assert.match(html,/&lt;script&gt;/);
+ assert.match(html,/gradebook-search-empty/);
+ assert.match(html,/data-gradebook-member/);
+ assert.match(html,/gradebook-member-row[^>]*hidden/);
+});
+
+test("Students do not see a club-wide gradebook even if a stale view is selected",()=>{
+ const {page,state}=gradebookFixture();
+ state.data.role="student";
+ const html=page(state);
+ assert.match(html,/classwork-section/);
+ assert.doesNotMatch(html,/class="gradebook-table"/);
+ assert.doesNotMatch(html,/data-puzzle-action="view:gradebook"/);
+});
+
+test("Gradebook data is requested only for moderators choosing Gradebook",async()=>{
+ const {list,state}=gradebookFixture();
+ const called=[];
+ const api=async path=>{
+   called.push(path);
+   if(path.endsWith("/puzzles/assignments"))return {assignments:[]};
+   if(path.endsWith("/gradebook"))return {members:[],assignments:[],cells:[],general_ready:true};
+   return {assignments:[],ready:true};
+ };
+ await list(state,api);
+ assert.equal(called.length,3);
+ assert.ok(called.some(p=>p.endsWith("/gradebook")));
+ state.data.role="student";
+ called.length=0;
+ await list(state,api);
+ assert.equal(called.length,2);
+ assert.ok(!called.some(p=>p.endsWith("/gradebook")));
 });
