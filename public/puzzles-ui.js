@@ -37,15 +37,18 @@ function assignmentTypeIcon(kind){
  return '<svg width="22" height="22" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" aria-hidden="true">'+(shapes[kind]||shapes.study)+'</svg>';
 }
 function combinedAssignments(state){
+ const moderator=state.data?.role==="moderator";
  const p=(state.puzzleAssignments||[]).map(a=>({
    ...a,kind:"puzzle",kindName:"Chess puzzles",entryId:"p:"+a.id,
-   completed:Number(a.my_solved||0)>=Number(a.puzzles||1),
+   completed:moderator?(Number(a.members||0)>0&&Number(a.solved||0)>=Number(a.members)*Number(a.puzzles)):
+     Number(a.my_solved||0)>=Number(a.puzzles||1),
    progress:Number(a.solved||0)+" / "+Number(a.members||0)*Number(a.puzzles||0)+" solved",
    myProgress:Number(a.my_solved||0)+" / "+a.puzzles+" solved"
  }));
  const g=(state.generalAssignments||[]).map(a=>({
    ...a,kindName:a.kind==="study"?"Study material":"Written response",entryId:"g:"+a.id,
-   completed:Number(a.my_submitted||0)>0,
+   completed:moderator?(Number(a.assigned||0)>0&&Number(a.submitted||0)>=Number(a.assigned)):
+     Number(a.my_submitted||0)>0,
    progress:Number(a.submitted||0)+" / "+Number(a.assigned||0)+" completed",
    myProgress:Number(a.my_submitted||0)?"Completed":"To do"
  }));
@@ -92,7 +95,7 @@ function listing(state){
    '<h1>Assignments</h1><p class="classwork-subtitle">Practice and learning activities for your club.</p></div>'+
    (canManage?'<div class="assignment-create-wrap">'+btn("+ Create","create-menu","btn") +createMenu+'</div>':"")+'</div>'+
    '<div class="classwork-layout"><aside class="classwork-filters" aria-label="Assignment filters"><div class="classwork-filter-title">View</div>'+
-     [["all","All assignments"],["todo","To do"],["complete","Completed"]].map(([key,title])=>
+     [["all","All assignments"],["todo",canManage?"In progress":"To do"],["complete","Completed"]].map(([key,title])=>
        '<button type="button" class="classwork-filter '+(filter===key?"active":"")+'" data-puzzle-action="filter:'+key+'"'+
        (filter===key?' aria-current="true"':'')+'>'+title+'</button>').join("")+
    '</aside><div class="classwork-content">'+
