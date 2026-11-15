@@ -1,5 +1,6 @@
 import {guestSchemaReady,tournamentPlayers,tournamentGames,newGameBindings,insertGuests,normalizeGuestNames} from "./tournaments.js";
 import { handlePuzzleRequest } from "./puzzles.js";
+import { handleGeneralAssignments } from "./assignments.js";
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 const error = (message, status = 400) => json({ error: message }, status);
 const uid = () => crypto.randomUUID();
@@ -177,6 +178,7 @@ export default {
         const club=path[2],role=await member(db,club,user);
         if(!role)return error("Not a member of this club",403);
         if(path[3]==="puzzles")return handlePuzzleRequest({db,club,user,role:role.role,path,method,req});
+        if(path[3]==="assignments")return handleGeneralAssignments({db,club,user,role:role.role,path,method,req});
 
         // Club message board. Only moderators may publish or manage posts;
         // all authenticated club members may read them via the club overview.
