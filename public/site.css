@@ -543,3 +543,102 @@ button.back:hover{text-decoration:underline}
  .assignment-due{white-space:normal}
  .assignment-title-button{font-size:14px}
 }
+
+
+/* Club navigation panels: two full-width, high-contrast surfaces on the green rail.
+   The dark-green gap, rather than a rule, separates Your clubs and Club workspace. */
+.sidebar{
+  gap:14px;
+  padding:18px 9px 20px;
+}
+.sidebar-panel{
+  display:flex;
+  flex-direction:column;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  border:1px solid #cbdacb;
+  border-radius:7px;
+  background:#f5f8f4;
+  color:#1c3c2c;
+  padding:14px 10px 13px;
+}
+.sidebar-panel .side-section-heading{
+  min-height:auto;
+  padding:0 8px;
+  margin:0 0 10px;
+}
+.sidebar-panel .side-section-label{
+  color:#526f5b;
+  margin:0;
+  padding:0;
+  font-weight:750;
+  line-height:1.5;
+}
+.sidebar-panel .side-group-label{
+  color:#5f7865;
+  padding:8px 9px 3px;
+}
+.sidebar-panel .side-club{
+  color:#274a33;
+  padding:10px;
+  min-height:39px;
+}
+.sidebar-panel .side-club:hover{
+  background:#e3eee4;
+  color:#1a402a;
+}
+.sidebar-panel .side-club.active{
+  background:#dcebdc;
+  color:#173c28;
+  box-shadow:inset 3px 0 0 #2e6847;
+}
+.sidebar-panel .side-club-dot{
+  border-color:#779984;
+}
+.sidebar-panel .side-club.active .side-club-dot{
+  background:#2e6847;
+  border-color:#2e6847;
+}
+.sidebar-panel .side-join{
+  margin-top:11px;
+  min-height:37px;
+  border:1px dashed #a6beab;
+  border-radius:5px;
+  color:#28533a;
+  font-weight:650;
+  background:transparent;
+}
+.sidebar-panel .side-join:hover{
+  background:#e4eee5;
+  border-color:#688d72;
+  color:#173e29;
+}
+.sidebar-panel .side-join .side-icon{opacity:.9}
+.sidebar-workspace .side-workspace-heading{
+  padding:0 8px 9px;
+}
+.sidebar-workspace .side-nav{gap:3px}
+.sidebar-workspace .side-nav .side-link{
+  min-height:41px;
+  color:#274a33;
+  padding:9px 10px;
+}
+.sidebar-workspace .side-nav .side-link:hover{
+  background:#e2ece3;
+  color:#173e29;
+}
+.sidebar-workspace .side-nav .side-link.active{
+  background:#2d6147;
+  color:#fff;
+  box-shadow:none;
+}
+.sidebar-workspace .side-nav .side-link.active:hover{background:#285940;color:#fff}
+.sidebar-workspace .side-nav .side-link.active:before{
+  left:0;
+  background:#c9e5c8;
+}
+.sidebar-workspace .side-empty{
+  color:#597260;
+  padding:2px 8px 8px;
+}
