@@ -122,6 +122,74 @@ function assignmentForm(state){
  '<div class="form-actions">'+btn("Cancel","cancel-assignment")+'<button type="submit" class="btn" id="puzzle-submit">Create assignment</button></div>'+
  '</form></div></section>';
 }
+function generalForm(state){
+ const kind=state.showGeneralForm;
+ const members=state.data?.members||[];
+ const study=kind==="study";
+ return '<section class="puzzle-form-layer" role="dialog" aria-modal="true" aria-label="Create assignment">'+
+   '<div class="puzzle-form-panel"><div class="panel-heading"><h2>'+(study?"Create study material":"Create written response")+'</h2>'+
+   btn("Close","cancel-general")+'</div><form class="panel-body form" id="general-create-form">'+
+   '<label>Assignment title<input class="field" name="title" required minlength="3" maxlength="100" placeholder="'+
+     (study?"e.g. Understanding basic endgames":"e.g. Explain your tournament decisions")+'"></label>'+
+   '<label>Instructions<textarea class="field" name="instructions" rows="5" maxlength="3000"'+
+     (!study?" required":"")+' placeholder="Tell members what to do..."></textarea></label>'+
+   '<div class="puzzle-form-grid"><label>Resource link (optional)<input class="field" type="url" name="resource_url" placeholder="https://..."></label>'+
+   '<label>Due date (optional)<input class="field" type="date" name="due_date"></label></div>'+
+   '<div><div class="spread"><strong>Assign to members</strong><span>'+
+     btn("All","general-all","btn text")+" "+btn("Clear","general-none","btn text")+'</span></div>'+
+   '<div class="puzzle-member-list">'+members.map(m=>
+     '<label class="selectrow"><input type="checkbox" class="general-member" value="'+escape(m.id)+'" checked>'+
+     '<span>'+escape(m.name)+'</span></label>').join("")+'</div></div>'+
+   '<p class="modal-hint">'+(study?
+      "Members will read the instructions or resource and mark the activity completed.":
+      "Members will type and submit a response that moderators can review.")+'</p>'+
+   '<div id="general-form-error" class="notice" role="alert" hidden></div>'+
+   '<div class="form-actions">'+btn("Cancel","cancel-general")+
+     '<button class="btn" id="general-submit" type="submit">Assign to members</button></div></form></div></section>';
+}
+function generalDetail(state){
+ const data=state.generalDetail;
+ if(!data)return '<section class="panel"><div class="empty">Loading assignment…</div></section>';
+ const a=data.assignment;
+ const completed=!!data.submission;
+ const mod=state.data?.role==="moderator";
+ const progress=Array.isArray(data.progress)?data.progress:[];
+ const resource=a.resource_url?
+   '<a class="classwork-resource" href="'+escape(a.resource_url)+'" target="_blank" rel="noopener noreferrer">'+
+   assignmentTypeIcon("study")+' Open study resource</a>':"";
+ const answerArea=data.targeted?'<section class="panel classwork-turnin"><div class="panel-heading"><h2>Your work</h2>'+
+   '<span class="pill '+(completed?"active":"")+'">'+(completed?"Completed":"Assigned")+'</span></div>'+
+   '<div class="panel-body">'+
+    (a.kind==="study"?
+      '<p class="panel-note">'+(completed?"You have marked this study task complete.":"Read the instructions or resource, then mark this task as done.")+'</p>'+
+      (!completed?btn("Mark as complete","complete-study","btn"):""):
+      '<form id="general-response-form"><label for="written-response">Your response</label>'+
+       '<textarea id="written-response" class="field" name="answer_text" rows="8" maxlength="3000" minlength="5" required placeholder="Write your response here...">'+
+         escape(data.submission?.answer_text||"")+'</textarea>'+
+       '<div id="general-response-error" class="notice" role="alert" hidden></div>'+
+       '<button type="submit" class="btn">'+(completed?"Update response":"Submit response")+'</button></form>')+
+   '</div></section>':
+   '<section class="panel classwork-turnin"><div class="panel-heading"><h2>Your work</h2></div><div class="panel-body"><p class="panel-note">This assignment is not addressed to your account.</p></div></section>';
+ const progressPanel=mod?'<section class="panel"><div class="panel-heading"><h2>Member submissions</h2>'+
+     '<span class="muted">'+progress.filter(p=>p.submitted_at).length+' of '+progress.length+' completed</span></div>'+
+   (progress.length?'<div class="classwork-submissions">'+progress.map(p=>
+     '<details class="classwork-submission"><summary><span>'+escape(p.name)+'</span><span class="pill '+(p.submitted_at?"active":"")+'">'+
+     (p.submitted_at?"Submitted":"Assigned")+'</span></summary>'+
+     (p.submitted_at?
+       '<div class="classwork-submission-answer">'+(a.kind==="written"?escape(p.answer_text||""):"Marked complete")+'</div>':
+       '<div class="classwork-submission-answer muted">No submission yet.</div>')+'</details>'
+   ).join("")+'</div>':'<div class="panel-body"><p>No members selected.</p></div>')+'</section>':"";
+ return '<button type="button" class="back interactive" data-puzzle-action="back">← Assignments</button>'+
+   '<div class="top classwork-heading"><div><div class="eyebrow">'+escape(a.kind==="study"?"Study material":"Written response")+'</div>'+
+   '<h1>'+escape(a.title)+'</h1><p class="classwork-subtitle">'+
+      (a.due_date?"Due "+fmt(a.due_date):"No deadline")+
+      (a.author_name?" · Posted by "+escape(a.author_name):"")+'</p></div>'+
+   (mod?btn("Delete","delete-general","btn danger-ghost small"):"")+'</div>'+
+   '<div class="classwork-detail-grid"><div class="classwork-detail-main"><section class="panel">'+
+     '<div class="panel-heading"><h2>Instructions</h2></div>'+
+     '<div class="panel-body"><p class="classwork-instructions">'+escape(a.instructions||"No written instructions provided.")+'</p>'+resource+'</div>'+
+   '</section>'+progressPanel+'</div><aside>'+answerArea+'</aside></div>';
+}
 function detail(state){
  const d=state.assignmentData;
  if(!d)return '<div class="panel"><div class="empty">Loading assignment…</div></div>';
@@ -144,7 +212,7 @@ function detail(state){
  '<div class="tablewrap"><table><thead><tr><th>Member</th><th class="num">Solved</th><th class="num">Mistakes</th></tr></thead><tbody>'+
  d.summary.map(s=>'<tr><td>'+escape(s.name)+'</td><td class="num">'+s.solved+" / "+items.length+'</td><td class="num">'+s.mistakes+'</td></tr>').join("")+
  '</tbody></table></div></section>':"";
- return '<a class="back interactive" data-puzzle-action="back">← Puzzle assignments</a>'+
+ return '<a class="back interactive" data-puzzle-action="back">← Assignments</a>'+
  '<div class="workspace-title"><div class="eyebrow">Puzzle assignment</div><h1>'+escape(d.assignment.title)+'</h1>'+
  '<p class="muted">'+escape(pretty(d.assignment.theme))+' · '+fmt(d.assignment.due_date)+' · '+items.length+' puzzles</p></div>'+
  '<div class="tournament-workspace"><aside>'+left+'</aside><div class="workspace-main">'+
@@ -152,6 +220,7 @@ function detail(state){
  report+'</div></div>';
 }
 function page(state){
+ if(state.activeGeneralAssignment)return generalDetail(state);
  if(state.activeAssignment)return detail(state);
  return listing(state);
 }
