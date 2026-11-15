@@ -1,3 +1,4 @@
+import {gradebookData} from "./gradebook.js";
 // General club assignments. Puzzle assignments stay on the Lichess routes.
 // This module does not accept guest tournament players or unauthenticated users.
 
@@ -109,6 +110,10 @@ export async function handleGeneralAssignments({db,club,user,role,path,method,re
   try{
     if(path[3]!=="assignments")return error("Not found.",404);
     if(path.length===4&&method==="GET")return listAssignments(db,club,user,role);
+    if(path.length===5&&path[4]==="gradebook"&&method==="GET"){
+      if(role!=="moderator")return error("Only moderators can view club-wide assignment progress.",403);
+      return json(await gradebookData(db,club));
+    }
     if(path.length===4&&method==="POST")return createAssignment(db,club,user,role,await req.json());
     if(!(await ready(db)))return error("Assignments require database migration 0005. Run npm run db:migrate:cloud.",503);
     const id=path[4];
