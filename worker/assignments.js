@@ -14,7 +14,7 @@ const validUrl=value=>{
   if(!value)return true;
   try{
     const url=new URL(value);
-    return url.protocol==="https:" && !!url.hostname && !url.username && !url.password && value.length<=800;
+    return typeof value==="string" && url.protocol==="https:" && !!url.hostname && !url.username && !url.password && value.length<=800;
   }catch{return false;}
 };
 const cleanText=(v,max)=>typeof v==="string"&&v.trim().length<=max?v.trim():null;
@@ -43,9 +43,9 @@ async function createAssignment(db,club,user,role,b){
   if(role!=="moderator")return error("Only moderators can create assignments.",403);
   if(!(await ready(db)))return error("Assignments require database migration 0005. Run npm run db:migrate:cloud.",503);
   const title=cleanText(b?.title,100);
-  const instructions=cleanText(b?.instructions,3000);
+  const instructions=cleanText(b?.instructions??"",3000);
   const kind=b?.kind;
-  const due=b?.due_date||null,resource=b?.resource_url?.trim()||null;
+  const due=b?.due_date||null,resource=typeof b?.resource_url==="string"?b.resource_url.trim()||null:b?.resource_url||null;
   if(!title||title.length<3)return error("Enter a title between 3 and 100 characters.");
   if(instructions===null)return error("Instructions must be 3,000 characters or fewer.");
   if(kind!=="study"&&kind!=="written")return error("Choose a supported assignment type.");
@@ -130,3 +130,5 @@ export async function handleGeneralAssignments({db,club,user,role,path,method,re
     return error("Could not complete the assignment request. Check Worker logs.",500);
   }
 }
+
+export {validDue,validUrl};
