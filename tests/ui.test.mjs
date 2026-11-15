@@ -60,6 +60,8 @@ test("modern workspace shell presents club switching ahead of navigation",async(
  assert.match(html,/data-action="toggle-club-menu"/);
  assert.match(html,/aria-expanded="false"/);
  assert.match(html,/class="cm-club-trigger"/);
+ assert.match(html,/Selected club/);
+ assert.doesNotMatch(html,/cm-club-avatar|Club manager|Club member/);
  assert.match(html,/data-action="add-club"/);
  assert.ok(html.indexOf("cm-workspace-picker")<html.indexOf("cm-nav"));
  assert.match(html,/School Chess Club/);
@@ -82,6 +84,7 @@ test("modern workspace shell presents club switching ahead of navigation",async(
  assert.match(html,/data-action="club:club-2"/);
  assert.match(html,/Managed by you/);
  assert.match(html,/Community Chess/);
+ assert.doesNotMatch(html,/cm-club-avatar/);
 });
 test("tournament shows left roster, right pairings and center VS controls",async()=>{
  const {get,app,members}=startApp();await app.load();
@@ -284,10 +287,13 @@ test("pairing grid assigns equal White and Black areas and centers result action
  assert.match(css,/\.match-result-actions\{[^}]*grid-column:2 \/ -1;[^}]*justify-content:center;/s);
 });
 
-test("navigation uses a neutral SaaS sidebar with accessible workspace switching",()=>{
+test("navigation combines forest-green contrast with accessible workspace switching",()=>{
  const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
  const sidebar=css.slice(css.indexOf(".cm-sidebar{"),css.indexOf("}",css.indexOf(".cm-sidebar{"))+1);
- assert.match(sidebar,/background:#f7f9f7/);
+ assert.match(sidebar,/background:#193b2c/);
+ assert.match(css,/background:#254b38/);
+ assert.match(css,/background:#35664c/);
+ assert.doesNotMatch(css,/\.cm-club-avatar\{/);
  assert.match(css,/\.cm-club-trigger\{/);
  assert.match(css,/\.cm-club-menu\{/);
  assert.match(css,/\.cm-nav-link\.active\{/);
