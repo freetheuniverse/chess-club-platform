@@ -8,7 +8,15 @@ const pretty=x=>x?.replace(/([A-Z])/g," $1")||"";
 const fmt=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No deadline";
 const btn=(text,action,cls="btn ghost small")=>'<button type="button" class="'+cls+'" data-puzzle-action="'+action+'">'+text+"</button>";
 const options=(pairs,selected)=>pairs.map(([key,label])=>'<option value="'+key+'"'+(key===selected?" selected":"")+'>'+label+"</option>").join("");
-async function list(state,api){state.puzzleAssignments=(await api("clubs/"+state.club+"/puzzles/assignments")).assignments;}
+async function list(state,api){
+ const [puzzles,general]=await Promise.all([
+   api("clubs/"+state.club+"/puzzles/assignments"),
+   api("clubs/"+state.club+"/assignments")
+ ]);
+ state.puzzleAssignments=puzzles.assignments||[];
+ state.generalAssignments=general.assignments||[];
+ state.generalReady=general.ready!==false;
+}
 async function open(state,api,id){
  state.activeAssignment=id;state.assignmentData=await api("clubs/"+state.club+"/puzzles/assignments/"+id);
  state.puzzleIndex=Math.max(0,state.assignmentData.items.findIndex(i=>!i.solved));
@@ -20,21 +28,82 @@ function boardHtml(item,state){
  return '<div class="chess-board-host" id="puzzle-board-host" role="group" aria-label="Interactive chess puzzle board"></div>';
 }
 
-function listing(state){
- const arr=state.puzzleAssignments||[];
- const canManage=state.data?.role==="moderator";
- return '<div class="top"><div><div class="eyebrow">'+escape(state.data?.club?.name||"Chess club")+'</div><h1>Puzzle assignments</h1></div>'+
- (canManage?btn("Assign puzzles","new-assignment","btn"):"")+'</div>'+
- (state.puzzleLoading?'<div class="panel"><div class="empty">Loading assignments…</div></div>':
- arr.length?'<section class="panel"><div class="panel-heading"><h2>Assignments</h2><span class="muted">'+arr.length+' total</span></div>'+
- '<div class="tablewrap"><table><thead><tr><th>Assignment</th><th>Theme</th><th class="num">Puzzles</th><th>Due</th><th>Progress</th><th></th></tr></thead><tbody>'+
- arr.map(a=>'<tr><td><strong>'+escape(a.title)+'</strong></td><td>'+escape(pretty(a.theme))+'</td><td class="num">'+a.puzzles+'</td>'+
- '<td>'+fmt(a.due_date)+'</td><td class="muted">'+(canManage?a.solved+" / "+a.members*a.puzzles+" solved":a.my_solved+" / "+a.puzzles+" solved")+'</td>'+
- '<td>'+btn("Open","open:"+a.id)+'</td></tr>').join("")+'</tbody></table></div></section>':
- '<section class="panel"><div class="panel-heading"><h2>Puzzle assignments</h2></div><div class="empty-action"><p>No puzzles assigned to this club yet.</p>'+
- (canManage?btn("Create first assignment","new-assignment","btn"):"")+'</div></section>')+
- (state.showAssignmentForm?assignmentForm(state):"");
+function assignmentTypeIcon(kind){
+ const shapes={
+   puzzle:'<path d="M17 21H7l1-5 3-2-2-4 2-6h5l3 4-3 4-1 4 2 5Z"/><path d="M11 8h.01"/>',
+   study:'<path d="M12 7a6 6 0 0 0-8-1v14a6 6 0 0 1 8 1 6 6 0 0 1 8-1V6a6 6 0 0 0-8 1ZM12 7v14"/>',
+   written:'<path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM14 3v5h5M9 13h6M9 17h6"/>'
+ };
+ return '<svg width="22" height="22" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" aria-hidden="true">'+(shapes[kind]||shapes.study)+'</svg>';
 }
+function combinedAssignments(state){
+ const p=(state.puzzleAssignments||[]).map(a=>({
+   ...a,kind:"puzzle",kindName:"Chess puzzles",entryId:"p:"+a.id,
+   completed:Number(a.my_solved||0)>=Number(a.puzzles||1),
+   progress:Number(a.solved||0)+" / "+Number(a.members||0)*Number(a.puzzles||0)+" solved",
+   myProgress:Number(a.my_solved||0)+" / "+a.puzzles+" solved"
+ }));
+ const g=(state.generalAssignments||[]).map(a=>({
+   ...a,kindName:a.kind==="study"?"Study material":"Written response",entryId:"g:"+a.id,
+   completed:Number(a.my_submitted||0)>0,
+   progress:Number(a.submitted||0)+" / "+Number(a.assigned||0)+" completed",
+   myProgress:Number(a.my_submitted||0)?"Completed":"To do"
+ }));
+ return [...p,...g];
+}
+function listing(state){
+ const entries=combinedAssignments(state);
+ const canManage=state.data?.role==="moderator";
+ const filter=state.assignmentFilter||"all";
+ const today=new Date(),localDay=[today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
+ const visible=entries.filter(a=>{
+   if(filter==="all")return true;
+   if(filter==="complete")return a.completed;
+   if(filter==="todo")return !a.completed;
+   return true;
+ });
+ function group(a){return a.due_date?(a.due_date<localDay?"Past due":"Due dates"):"No due date";}
+ const sections=["Due dates","No due date","Past due"];
+ const sortFn=(a,b)=>{
+   if(a.due_date&&b.due_date)return a.due_date.localeCompare(b.due_date);
+   return String(b.created_at||"").localeCompare(String(a.created_at||""));
+ };
+ const cards=sections.map(groupName=>{
+   const assignments=visible.filter(a=>group(a)===groupName).sort(sortFn);
+   if(!assignments.length)return "";
+   return '<section class="classwork-section"><h2 class="classwork-topic">'+groupName+'</h2>'+
+     '<div class="classwork-stack">'+assignments.map(a=>
+       '<article class="assignment-card"><div class="assignment-icon '+a.kind+'">'+assignmentTypeIcon(a.kind)+'</div>'+
+       '<div class="assignment-main"><div class="assignment-card-top"><span class="assignment-kind">'+a.kindName+'</span>'+
+         '<span class="assignment-due">'+(a.due_date?"Due "+fmt(a.due_date):"No deadline")+'</span></div>'+
+       '<button class="assignment-title-button" type="button" data-puzzle-action="open:'+a.entryId+'">'+escape(a.title)+'</button>'+
+       '<p class="assignment-summary">'+(canManage?a.progress:a.myProgress)+
+         (a.kind==="puzzle"?" · "+a.puzzles+" puzzles":"")+'</p>'+
+       '</div><div class="assignment-card-action">'+btn("Open","open:"+a.entryId,"btn ghost small")+'</div></article>'
+     ).join("")+'</div></section>';
+ }).join("");
+ const createMenu=canManage&&state.showCreateMenu?
+   '<div class="assignment-create-menu" role="group" aria-label="Create assignment type">'+
+     btn(assignmentTypeIcon("puzzle")+' Puzzle practice',"new-assignment","classwork-create-option")+
+     btn(assignmentTypeIcon("study")+' Study material',"new-general:study","classwork-create-option")+
+     btn(assignmentTypeIcon("written")+' Written response',"new-general:written","classwork-create-option")+
+   '</div>':"";
+ return '<div class="top classwork-heading"><div><div class="eyebrow">'+escape(state.data?.club?.name||"Chess club")+'</div>'+
+   '<h1>Assignments</h1><p class="classwork-subtitle">Practice and learning activities for your club.</p></div>'+
+   (canManage?'<div class="assignment-create-wrap">'+btn("+ Create","create-menu","btn") +createMenu+'</div>':"")+'</div>'+
+   '<div class="classwork-layout"><aside class="classwork-filters" aria-label="Assignment filters"><div class="classwork-filter-title">View</div>'+
+     [["all","All assignments"],["todo","To do"],["complete","Completed"]].map(([key,title])=>
+       '<button type="button" class="classwork-filter '+(filter===key?"active":"")+'" data-puzzle-action="filter:'+key+'"'+
+       (filter===key?' aria-current="true"':'')+'>'+title+'</button>').join("")+
+   '</aside><div class="classwork-content">'+
+   (!state.generalReady?'<p class="classwork-setup">Study and written assignments require database migration 0005. Existing chess puzzles remain available.</p>':"")+
+   (entries.length?cards||'<div class="classwork-empty">No assignments match this filter.</div>':
+    '<div class="classwork-empty"><h2>No assignments yet</h2><p>Club assignments will appear here when published.</p></div>')+
+   '</div></div>'+
+   (state.showAssignmentForm?assignmentForm(state):"")+
+   (state.showGeneralForm?generalForm(state):"");
+}
+
 function assignmentForm(state){
  const members=state.data?.members||[];
  return '<section class="puzzle-form-layer" role="dialog" aria-label="New puzzle assignment" aria-modal="true"><div class="puzzle-form-panel">'+
