@@ -545,100 +545,104 @@ button.back:hover{text-decoration:underline}
 }
 
 
-/* Club navigation panels: two full-width, high-contrast surfaces on the green rail.
-   The dark-green gap, rather than a rule, separates Your clubs and Club workspace. */
+/* Full-bleed section headers only. Clubs and navigation remain on the
+   original dark-green sidebar, without enclosing white containers. */
 .sidebar{
-  gap:14px;
-  padding:18px 9px 20px;
+  padding:18px 0 20px;
+  gap:20px;
 }
-.sidebar-panel{
+.side-clubs,.sidebar-workspace{
   display:flex;
   flex-direction:column;
-  box-sizing:border-box;
   width:100%;
   min-width:0;
-  border:1px solid #cbdacb;
-  border-radius:7px;
-  background:#f5f8f4;
-  color:#1c3c2c;
-  padding:14px 10px 13px;
+  background:transparent;
+  color:#e7f0e8;
+  border:0;
+  border-radius:0;
+  padding:0;
 }
-.sidebar-panel .side-section-heading{
-  min-height:auto;
-  padding:0 8px;
-  margin:0 0 10px;
+.sidebar-heading-bar,
+.sidebar .side-section-heading.sidebar-heading-bar,
+.sidebar .side-workspace-heading.sidebar-heading-bar{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-height:42px;
+  margin:0 0 12px;
+  padding:10px 23px;
+  background:#f2f6f1;
+  color:#244a34;
+  border:0;
+  border-radius:0;
 }
-.sidebar-panel .side-section-label{
-  color:#526f5b;
+.sidebar-heading-bar .side-section-label{
+  display:block;
+  color:#244a34;
   margin:0;
   padding:0;
+  font-size:10px;
   font-weight:750;
+  letter-spacing:.1em;
   line-height:1.5;
 }
-.sidebar-panel .side-group-label{
-  color:#5f7865;
-  padding:8px 9px 3px;
+.side-clubs .side-club-list{
+  box-sizing:border-box;
+  padding:0 12px;
+  width:100%;
 }
-.sidebar-panel .side-club{
-  color:#274a33;
-  padding:10px;
-  min-height:39px;
+.side-clubs .side-group-label{
+  color:#a2bca9;
+  padding:9px 22px 3px;
 }
-.sidebar-panel .side-club:hover{
-  background:#e3eee4;
-  color:#1a402a;
+.side-clubs .side-club{
+  color:#e1ece4;
 }
-.sidebar-panel .side-club.active{
-  background:#dcebdc;
-  color:#173c28;
-  box-shadow:inset 3px 0 0 #2e6847;
+.side-clubs .side-club:hover{
+  color:#fff;
+  background:#2a5240;
 }
-.sidebar-panel .side-club-dot{
-  border-color:#779984;
-}
-.sidebar-panel .side-club.active .side-club-dot{
-  background:#2e6847;
-  border-color:#2e6847;
-}
-.sidebar-panel .side-join{
-  margin-top:11px;
-  min-height:37px;
-  border:1px dashed #a6beab;
-  border-radius:5px;
-  color:#28533a;
-  font-weight:650;
-  background:transparent;
-}
-.sidebar-panel .side-join:hover{
-  background:#e4eee5;
-  border-color:#688d72;
+.side-clubs .side-club.active{
+  background:#eaf3e9;
   color:#173e29;
 }
-.sidebar-panel .side-join .side-icon{opacity:.9}
-.sidebar-workspace .side-workspace-heading{
-  padding:0 8px 9px;
+.side-clubs .side-club.active .side-club-dot{
+  background:#245d3b;
+  border-color:#245d3b;
 }
-.sidebar-workspace .side-nav{gap:3px}
+.side-clubs .side-join{
+  box-sizing:border-box;
+  width:calc(100% - 24px);
+  margin:9px 12px 0;
+  color:#e1ece4;
+  background:transparent;
+  border:1px dashed #54735d;
+}
+.side-clubs .side-join:hover{
+  background:#244c35;
+  color:#fff;
+  border-color:#9db8a1;
+}
+.sidebar-workspace .side-nav{
+  box-sizing:border-box;
+  width:100%;
+  padding:0 12px;
+  gap:3px;
+}
 .sidebar-workspace .side-nav .side-link{
-  min-height:41px;
-  color:#274a33;
-  padding:9px 10px;
+  color:#dbe9df;
+  padding:9px 12px;
 }
 .sidebar-workspace .side-nav .side-link:hover{
-  background:#e2ece3;
-  color:#173e29;
+  background:#2a5240;
+  color:#fff;
 }
 .sidebar-workspace .side-nav .side-link.active{
-  background:#2d6147;
+  background:#315a45;
   color:#fff;
-  box-shadow:none;
-}
-.sidebar-workspace .side-nav .side-link.active:hover{background:#285940;color:#fff}
-.sidebar-workspace .side-nav .side-link.active:before{
-  left:0;
-  background:#c9e5c8;
 }
 .sidebar-workspace .side-empty{
-  color:#597260;
-  padding:2px 8px 8px;
+  margin:0 12px;
+  color:#a3b9ab;
 }
