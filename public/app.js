@@ -1,4 +1,4 @@
-const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false};
+const state={user:null,clubs:[],club:null,data:null,tournament:null,tdata:null,tab:"overview",modal:null,notice:"",puzzleAssignments:null,generalAssignments:null,generalReady:false,activeGeneralAssignment:null,generalDetail:null,assignmentFilter:"all",showCreateMenu:false,showGeneralForm:null,activeAssignment:null,assignmentData:null,puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",puzzleMoving:false,showAssignmentForm:false,loading:true,viewRound:null,expandedGame:null,sidebarOpen:false};
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date=x=>x?new Date(x+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
@@ -36,7 +36,7 @@ function sideIcon(name){
  return '<svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(shapes[name]||shapes.club)+'</svg>';
 }
 function shell(content){
- const pages=[["overview","Overview"],["tournaments","Tournaments"],["puzzles","Puzzle Assignments"],["members","Members"],["attendance","Attendance"]];
+ const pages=[["overview","Overview"],["tournaments","Tournaments"],["puzzles","Assignments"],["members","Members"],["attendance","Attendance"]];
  const managed=state.clubs.filter(c=>c.role==="moderator");
  const joined=state.clubs.filter(c=>c.role!=="moderator");
  const currentClub=state.clubs.find(c=>c.id===state.club);
@@ -75,7 +75,7 @@ function shell(content){
 }
 function renderHeader(){
  const name=state.data?.club?.name||"Your clubs";
- const titles={overview:"Overview",tournaments:"Tournaments",members:"Members",attendance:"Attendance",puzzles:"Puzzle Assignments"};
+ const titles={overview:"Overview",tournaments:"Tournaments",members:"Members",attendance:"Attendance",puzzles:"Assignments"};
  return '<div class="top"><div><div class="page-club-name">'+esc(name)+'</div><h1>'+titles[state.tab]+'</h1></div>'+
   (state.data?.role==="moderator" && ["overview","tournaments"].includes(state.tab)?button("New tournament","new-tournament"):"")+
   '</div>';
@@ -338,7 +338,7 @@ function bind(){
    const [a,id,value]=el.dataset.action.split(":");
    if(a==="tab"){
      state.tab=id;state.sidebarOpen=false;state.tournament=null;state.tdata=null;
-     state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;
+     state.viewRound=null;state.expandedGame=null;state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;
      if(id==="puzzles" && state.club && typeof window!=="undefined" && window.PuzzleModule){
        action(async()=>{await window.PuzzleModule.list(state,api);});
      } else render();
@@ -351,7 +351,7 @@ function bind(){
      action(async()=>{
        state.club=id;state.sidebarOpen=false;state.tab="overview";
        state.tournament=null;state.tdata=null;state.viewRound=null;state.expandedGame=null;
-       state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;
+       state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;
      });
    } else if(a==="add-club"||a==="new-club"||a==="join-club"||a==="new-tournament"||a==="new-message"){
      state.modal=a;state.notice="";state.sidebarOpen=false;render();
@@ -360,7 +360,7 @@ function bind(){
    } else if(a==="copy-code"){
      navigator.clipboard?.writeText(state.data.club.join_code).then(()=>{state.notice="Join code copied.";render()});
    } else if(a==="logout"){
-     action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.activeAssignment=null;state.assignmentData=null;state.showAssignmentForm=false;});
+     action(async()=>{await post("auth/logout");state.user=null;state.club=null;state.data=null;state.tournament=null;state.viewRound=null;state.expandedGame=null;state.puzzleAssignments=null;state.generalAssignments=null;state.generalReady=false;state.activeAssignment=null;state.assignmentData=null;state.activeGeneralAssignment=null;state.generalDetail=null;state.showCreateMenu=false;state.showGeneralForm=null;state.showAssignmentForm=false;});
    } else if(a==="pin-message"){
      action(async()=>{await post("clubs/"+state.club+"/messages/"+id+"/pin");});
    } else if(a==="delete-message"){
