@@ -286,7 +286,7 @@ test("pairing grid assigns equal White and Black areas and centers result action
 
 test("navigation uses a neutral SaaS sidebar with accessible workspace switching",()=>{
  const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
- const sidebar=css.slice(css.lastIndexOf(".cm-sidebar{"),css.indexOf("}",css.lastIndexOf(".cm-sidebar{"))+1);
+ const sidebar=css.slice(css.indexOf(".cm-sidebar{"),css.indexOf("}",css.indexOf(".cm-sidebar{"))+1);
  assert.match(sidebar,/background:#f7f9f7/);
  assert.match(css,/\.cm-club-trigger\{/);
  assert.match(css,/\.cm-club-menu\{/);
