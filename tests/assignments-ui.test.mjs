@@ -36,12 +36,13 @@ test("Assignments page combines Lichess puzzles with study and written cards",()
  assert.match(html,/data-puzzle-action="open:p:p1"/);
  assert.match(html,/data-puzzle-action="open:g:g1"/);
  assert.match(html,/All assignments/);
- assert.match(html,/To do/);
+ assert.match(html,/In progress/);
 });
 
 test("Assignment filters show tasks based on member progress",()=>{
  const {page,state}=renderFixture();
  state.data.role="student";
+ assert.match(page(state),/To do/);
  state.assignmentFilter="todo";
  let html=page(state);
  assert.match(html,/Study endgames/);
