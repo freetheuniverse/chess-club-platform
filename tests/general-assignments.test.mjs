@@ -9,6 +9,12 @@ function fakeDb({ready=true,recipients=["member-a","member-b"]}={}){
  const db={
    prepare(sql){
      return {
+       // D1 supports both prepare(sql).first() and prepare(sql).bind(...).first().
+       first:async()=>{
+         calls.push({sql,args:[],kind:"first"});
+         if(sql.includes("sqlite_master"))return ready?{name:"club_assignments"}:null;
+         return null;
+       },
        bind(...args){
          return {
            first:async()=>{
