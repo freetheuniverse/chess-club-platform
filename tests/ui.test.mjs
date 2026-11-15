@@ -49,30 +49,22 @@ function startApp(){
  return {get,app:context.__testApp,data,members,handlers};
 }
 
-test("Chess Club Manager presents clubs above the selected club workspace",async()=>{
- const {get,app}=startApp();await app.load();
- const html=get("app").innerHTML;
+test("modern workspace shell presents club switching ahead of navigation",async()=>{
+ const {get,app,handlers}=startApp();await app.load();
+ let html=get("app").innerHTML;
  assert.match(html,/Chess Club Manager/);
- assert.match(html,/class="sidebar /);
+ assert.match(html,/class="sidebar cm-sidebar /);
+ assert.match(html,/class="cm-workspace-picker"/);
+ assert.match(html,/class="cm-nav"/);
  assert.match(html,/Assignments/);
- assert.match(html,/Your clubs/);
- assert.match(html,/class="side-clubs" aria-label="Your clubs"/);
- assert.match(html,/class="sidebar-workspace" aria-label="Club workspace"/);
- assert.match(html,/class="side-section-heading sidebar-heading-bar"/);
- assert.match(html,/class="side-workspace-heading sidebar-heading-bar"/);
- assert.doesNotMatch(html,/sidebar-panel|side-section-divider/);
- assert.ok(html.indexOf('class="side-clubs"')<html.indexOf('class="sidebar-workspace"'));
- assert.doesNotMatch(html,/side-group-label">Managed/);
- assert.match(html,/side-group-label">Joined/);
- assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
- assert.ok(html.indexOf("Club workspace") < html.indexOf("Assignments"),"Workspace links should follow the selected club");
- assert.doesNotMatch(html,/side-workspace-club/);
- assert.doesNotMatch(html,/class="side-add"/);
+ assert.match(html,/data-action="toggle-club-menu"/);
+ assert.match(html,/aria-expanded="false"/);
+ assert.match(html,/class="cm-club-trigger"/);
  assert.match(html,/data-action="add-club"/);
+ assert.ok(html.indexOf("cm-workspace-picker")<html.indexOf("cm-nav"));
  assert.match(html,/School Chess Club/);
- assert.match(html,/Community Chess/);
- assert.match(html,/data-action="add-club"/);
- assert.match(html,/data-action="club:club-2"/);
+ assert.doesNotMatch(html,/sidebar-heading-bar|sidebar-panel|side-section-divider/);
+ assert.doesNotMatch(html,/data-action="club:club-2"/);
  assert.match(html,/Message board/);
  assert.match(html,/Training reminder/);
  assert.match(html,/Quick reference/);
@@ -82,8 +74,15 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  assert.match(html,/Not started/);
  assert.doesNotMatch(html,/Recent tournaments|Club access|summary-line/);
  assert.doesNotMatch(html,/clubselect|tab-bar|class="mark"/);
+ handlers.get("toggle-club-menu")();
+ assert.equal(app.state.clubMenuOpen,true);
+ html=get("app").innerHTML;
+ assert.match(html,/aria-expanded="true"/);
+ assert.match(html,/Your clubs/);
+ assert.match(html,/data-action="club:club-2"/);
+ assert.match(html,/Managed by you/);
+ assert.match(html,/Community Chess/);
 });
-
 test("tournament shows left roster, right pairings and center VS controls",async()=>{
  const {get,app,members}=startApp();await app.load();
  app.state.tournament="t1";
@@ -112,6 +111,8 @@ test("tournament shows left roster, right pairings and center VS controls",async
 test("switching clubs from the sidebar resets old club context and loads the selected club",async()=>{
  const {get,app,handlers}=startApp();await app.load();
  assert.equal(app.state.club,"club-1");
+ assert.equal(handlers.get("club:club-2"),undefined);
+ handlers.get("toggle-club-menu")();
  const switchClub=handlers.get("club:club-2");
  assert.equal(typeof switchClub,"function");
  app.state.tournament="previous";
@@ -125,8 +126,9 @@ test("switching clubs from the sidebar resets old club context and loads the sel
  assert.equal(app.state.activeAssignment,null);
  assert.equal(app.state.data.club.name,"Community Chess");
  const html=get("app").innerHTML;
- assert.match(html,/side-group-label">Joined/);
- assert.match(html,/data-action="club:club-2"/);
+ assert.match(html,/Community Chess/);
+ assert.match(html,/aria-expanded="false"/);
+ assert.equal(app.state.clubMenuOpen,false);
  assert.doesNotMatch(html,/clubselect/);
 });
 
@@ -135,7 +137,7 @@ test("mobile sidebar toggle updates the aria-expanded state and opens the drawer
  handlers.get("toggle-sidebar")();
  assert.equal(app.state.sidebarOpen,true);
  const html=get("app").innerHTML;
- assert.match(html,/sidebar is-open/);
+ assert.match(html,/cm-sidebar is-open/);
  assert.match(html,/aria-expanded="true"/);
  assert.match(html,/sidebar-scrim/);
 });
@@ -148,7 +150,7 @@ test("no club selected hides club-specific workspace navigation",async()=>{
  app.state.data=null;
  app.render();
  const html=get("app").innerHTML;
- assert.match(html,/Your clubs/);
+ assert.match(html,/Select a club/);
  assert.match(html,/Add a Club/);
  assert.match(html,/Choose a club above to open its workspace/);
  assert.doesNotMatch(html,/data-action="tab:members"/);
@@ -282,14 +284,13 @@ test("pairing grid assigns equal White and Black areas and centers result action
  assert.match(css,/\.match-result-actions\{[^}]*grid-column:2 \/ -1;[^}]*justify-content:center;/s);
 });
 
-test("navigation uses full-width light header bars only, with green content and no divider",()=>{
+test("navigation uses a neutral SaaS sidebar with accessible workspace switching",()=>{
  const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
- const heading=css.slice(css.lastIndexOf(".sidebar-heading-bar,"),css.indexOf("}",css.lastIndexOf(".sidebar-heading-bar,"))+1);
- assert.match(heading,/width:100%/);
- assert.match(heading,/background:#f2f6f1/);
- const rail=css.slice(css.lastIndexOf(".sidebar{"),css.indexOf("}",css.lastIndexOf(".sidebar{"))+1);
- assert.match(rail,/padding:18px 0 20px/);
- assert.match(css,/\.sidebar-workspace \.side-nav\{/);
- assert.match(css,/background:transparent/);
- assert.doesNotMatch(css,/\.sidebar-panel\{/);
+ const sidebar=css.slice(css.lastIndexOf(".cm-sidebar{"),css.indexOf("}",css.lastIndexOf(".cm-sidebar{"))+1);
+ assert.match(sidebar,/background:#f7f9f7/);
+ assert.match(css,/\.cm-club-trigger\{/);
+ assert.match(css,/\.cm-club-menu\{/);
+ assert.match(css,/\.cm-nav-link\.active\{/);
+ assert.match(css,/\.cm-mobile-brand\{/);
+ assert.doesNotMatch(css,/Full-bleed section headers only/);
 });
