@@ -239,14 +239,61 @@ function updatePuzzleFeedback(state,item){
 
 function bind({state,render,api,post,action}){
  document.querySelectorAll("[data-puzzle-action]").forEach(el=>el.onclick=()=>{
-   const [cmd,val]=el.dataset.puzzleAction.split(":");
-   if(cmd==="new-assignment"){state.showAssignmentForm=true;render();}
+   const [cmd,...parts]=el.dataset.puzzleAction.split(":");
+   const val=parts.join(":");
+   if(cmd==="create-menu"){state.showCreateMenu=!state.showCreateMenu;render();}
+   if(cmd==="filter"){state.assignmentFilter=val;render();}
+   if(cmd==="new-assignment"){
+     state.showAssignmentForm=true;state.showCreateMenu=false;state.showGeneralForm=null;render();
+   }
+   if(cmd==="new-general"){
+     if(!state.generalReady){
+       state.notice="Apply database migration 0005 to enable study and written assignments.";
+       render();return;
+     }
+     state.showGeneralForm=val;state.showAssignmentForm=false;state.showCreateMenu=false;render();
+   }
+   if(cmd==="cancel-general"){state.showGeneralForm=null;render();}
    if(cmd==="cancel-assignment"){state.showAssignmentForm=false;render();}
+   if(cmd==="general-all"||cmd==="general-none")document.querySelectorAll(".general-member").forEach(x=>x.checked=cmd==="general-all");
    if(cmd==="members-all"||cmd==="members-none")document.querySelectorAll(".puzzle-member").forEach(x=>x.checked=cmd==="members-all");
    if(cmd==="flip")liveBoard?.flip();
-   if(cmd==="back"){state.activeAssignment=null;state.assignmentData=null;state.puzzleFeedback="";render();}
+   if(cmd==="back"){
+     action(async()=>{
+       state.activeAssignment=null;state.assignmentData=null;
+       state.activeGeneralAssignment=null;state.generalDetail=null;state.puzzleFeedback="";
+       await list(state,api);
+     });
+   }
    if(cmd==="select"){state.puzzleIndex=Number(val);state.puzzleSquare=null;state.puzzleFeedback="";render();}
-   if(cmd==="open"){action(async()=>{await open(state,api,val)});}
+   if(cmd==="open"){
+     action(async()=>{
+       if(val.startsWith("g:")){
+         const id=val.slice(2);
+         state.activeAssignment=null;state.assignmentData=null;
+         state.activeGeneralAssignment=id;
+         state.generalDetail=await api("clubs/"+state.club+"/assignments/"+id);
+       }else{
+         state.activeGeneralAssignment=null;state.generalDetail=null;
+         await open(state,api,val.startsWith("p:")?val.slice(2):val);
+       }
+     });
+   }
+   if(cmd==="complete-study"){
+     action(async()=>{
+       await post("clubs/"+state.club+"/assignments/"+state.activeGeneralAssignment+"/submit",{});
+       state.generalDetail=await api("clubs/"+state.club+"/assignments/"+state.activeGeneralAssignment);
+       await list(state,api);
+     });
+   }
+   if(cmd==="delete-general"){
+     if(!confirm("Delete this assignment and all its submissions? This cannot be undone."))return;
+     action(async()=>{
+       await api("clubs/"+state.club+"/assignments/"+state.activeGeneralAssignment,{method:"DELETE"});
+       state.activeGeneralAssignment=null;state.generalDetail=null;
+       await list(state,api);
+     });
+   }
  });
  const form=document.getElementById("puzzle-create-form");
  if(form)form.onsubmit=async e=>{
@@ -262,6 +309,42 @@ function bind({state,render,api,post,action}){
      await list(state,api);await open(state,api,created.id);
      render();
    }catch(e){error.textContent=e.message;error.hidden=false;}finally{submit.disabled=false;}
+ };
+
+ const generalCreate=document.getElementById("general-create-form");
+ if(generalCreate)generalCreate.onsubmit=async e=>{
+   e.preventDefault();
+   const submit=document.getElementById("general-submit"),error=document.getElementById("general-form-error");
+   const payload=Object.fromEntries(new FormData(generalCreate));
+   payload.kind=state.showGeneralForm;
+   payload.user_ids=[...document.querySelectorAll(".general-member:checked")].map(x=>x.value);
+   if(!payload.user_ids.length){error.textContent="Select at least one member.";error.hidden=false;return;}
+   submit.disabled=true;error.hidden=true;
+   try{
+     const created=await post("clubs/"+state.club+"/assignments",payload);
+     state.showGeneralForm=null;
+     await list(state,api);
+     state.activeGeneralAssignment=created.id;
+     state.activeAssignment=null;state.assignmentData=null;
+     state.generalDetail=await api("clubs/"+state.club+"/assignments/"+created.id);
+     render();
+   }catch(e){error.textContent=e.message;error.hidden=false;}
+   finally{submit.disabled=false;}
+ };
+ const generalResponse=document.getElementById("general-response-form");
+ if(generalResponse)generalResponse.onsubmit=async e=>{
+   e.preventDefault();
+   const error=document.getElementById("general-response-error");
+   const btnSubmit=generalResponse.querySelector('button[type="submit"]');
+   const answer=generalResponse.querySelector('textarea[name="answer_text"]')?.value||"";
+   if(btnSubmit)btnSubmit.disabled=true;
+   if(error)error.hidden=true;
+   try{
+     await post("clubs/"+state.club+"/assignments/"+state.activeGeneralAssignment+"/submit",{answer_text:answer});
+     state.generalDetail=await api("clubs/"+state.club+"/assignments/"+state.activeGeneralAssignment);
+     await list(state,api);render();
+   }catch(e){if(error){error.textContent=e.message;error.hidden=false;}}
+   finally{if(btnSubmit)btnSubmit.disabled=false;}
  };
 
  const host=document.getElementById("puzzle-board-host");
