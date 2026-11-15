@@ -16,6 +16,9 @@ async function list(state,api){
  state.puzzleAssignments=puzzles.assignments||[];
  state.generalAssignments=general.assignments||[];
  state.generalReady=general.ready!==false;
+ if(state.data?.role==="moderator" && state.assignmentView==="gradebook"){
+   state.gradebook=await api("clubs/"+state.club+"/assignments/gradebook");
+ }
 }
 async function open(state,api,id){
  state.activeAssignment=id;state.assignmentData=await api("clubs/"+state.club+"/puzzles/assignments/"+id);
@@ -54,6 +57,22 @@ function combinedAssignments(state){
  }));
  return [...p,...g];
 }
+function assignmentCreateActions(state){
+ const menu=state.showCreateMenu?
+   '<div class="assignment-create-menu" role="group" aria-label="Create assignment type">'+
+     btn(assignmentTypeIcon("puzzle")+' Puzzle practice',"new-assignment","classwork-create-option")+
+     btn(assignmentTypeIcon("study")+' Study material',"new-general:study","classwork-create-option")+
+     btn(assignmentTypeIcon("written")+' Written response',"new-general:written","classwork-create-option")+
+   '</div>':"";
+ return '<div class="assignment-create-wrap">'+btn("+ Create","create-menu","btn")+menu+'</div>';
+}
+function assignmentViewTabs(active){
+ return '<nav class="gradebook-tabs" aria-label="Assignment views">'+
+   [['classwork','Classwork'],['gradebook','Gradebook']].map(([key,label])=>
+     '<button type="button" class="gradebook-tab '+(active===key?'active':'')+'" data-puzzle-action="view:'+key+'"'+
+     (active===key?' aria-current="page"':'')+'>'+label+'</button>'
+   ).join("")+'</nav>';
+}
 function listing(state){
  const entries=combinedAssignments(state);
  const canManage=state.data?.role==="moderator";
@@ -85,15 +104,11 @@ function listing(state){
        '</div><div class="assignment-card-action">'+btn("Open","open:"+a.entryId,"btn ghost small")+'</div></article>'
      ).join("")+'</div></section>';
  }).join("");
- const createMenu=canManage&&state.showCreateMenu?
-   '<div class="assignment-create-menu" role="group" aria-label="Create assignment type">'+
-     btn(assignmentTypeIcon("puzzle")+' Puzzle practice',"new-assignment","classwork-create-option")+
-     btn(assignmentTypeIcon("study")+' Study material',"new-general:study","classwork-create-option")+
-     btn(assignmentTypeIcon("written")+' Written response',"new-general:written","classwork-create-option")+
-   '</div>':"";
+ const createMenu=canManage?assignmentCreateActions(state):"";
  return '<div class="top classwork-heading"><div><div class="eyebrow">'+escape(state.data?.club?.name||"Chess club")+'</div>'+
    '<h1>Assignments</h1><p class="classwork-subtitle">Practice and learning activities for your club.</p></div>'+
-   (canManage?'<div class="assignment-create-wrap">'+btn("+ Create","create-menu","btn") +createMenu+'</div>':"")+'</div>'+
+   createMenu+'</div>'+
+   (canManage?assignmentViewTabs("classwork"):"")+
    '<div class="classwork-layout"><aside class="classwork-filters" aria-label="Assignment filters"><div class="classwork-filter-title">View</div>'+
      [["all","All assignments"],["todo",canManage?"In progress":"To do"],["complete","Completed"]].map(([key,title])=>
        '<button type="button" class="classwork-filter '+(filter===key?"active":"")+'" data-puzzle-action="filter:'+key+'"'+
