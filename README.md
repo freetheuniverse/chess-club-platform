@@ -195,7 +195,7 @@ Tournament status labels are **Not started** (no rounds), **In progress** (at le
 
 ## Visual design and navigation
 
-The Chess Club Manager uses a restrained, SaaS-style navigation architecture influenced by familiar workspace applications such as Notion and Linear. A **soft-gray sidebar** contains the brand, a single **club switcher** showing the active club and account role, an immediately visible navigation list (Overview, Tournaments, Assignments, Members, Attendance), and a lower **Add a Club** action. Green is reserved for active navigation and actionable highlights rather than filling the entire sidebar.
+The Chess Club Manager uses a restrained, SaaS-style navigation architecture influenced by familiar workspace applications such as Notion and Linear. A **forest-green sidebar** contains the brand, a compact **club switcher** with a small **Selected club** label above the club name (no initial-letter avatar or role subtitle), an immediately visible navigation list (Overview, Tournaments, Assignments, Members, Attendance), and a lower **Add a Club** action. Contrasting green highlights distinguish the active page and hover states without introducing white section-header bars.
 
 Selecting the club switcher opens a menu of managed and joined clubs, with **Add a Club** at the bottom. Choosing a club resets stale tournament and assignment navigation. The Add a Club chooser still offers **Create a club** and **Join a club**. The workspace content now has a compact breadcrumb-style header with user information, while the sidebar opens as a drawer on mobile. Escape closes the club menu or mobile navigation. No new database tables are required for this visual redesign.
 
