@@ -545,8 +545,8 @@ button.back:hover{text-decoration:underline}
 }
 
 
-/* Modern workspace shell: restrained, familiar SaaS layout.
-   Neutral navigation surfaces, one clear club switcher, green as an accent. */
+/* Modern workspace shell: compact club switcher, familiar navigation,
+   and the original high-contrast forest-green sidebar. */
 .cm-shell{min-height:100vh}
 .cm-app-layout{
   display:grid;
@@ -567,9 +567,9 @@ button.back:hover{text-decoration:underline}
   padding:0;
   gap:0;
   overflow:visible;
-  background:#f7f9f7;
-  border-right:1px solid #dfe5df;
-  color:#24332a;
+  background:#193b2c;
+  border-right:1px solid #173729;
+  color:#e4efe7;
 }
 .cm-sidebar-brand{
   height:66px;
@@ -580,44 +580,30 @@ button.back:hover{text-decoration:underline}
   font-size:15px;
   font-weight:750;
   letter-spacing:-.028em;
-  color:#20382b;
+  color:#f7faf7;
 }
 .cm-workspace-picker{
   position:relative;
-  margin:7px 13px 25px;
+  margin:2px 13px 25px;
 }
 .cm-club-trigger{
   display:flex;
   align-items:center;
   gap:10px;
   width:100%;
-  min-height:58px;
-  background:#fff;
-  color:#1f3025;
-  padding:9px 10px;
-  border:1px solid #dce4dd;
-  border-radius:8px;
+  min-height:52px;
+  background:#254b38;
+  color:#f6faf6;
+  padding:8px 12px;
+  border:1px solid #52745e;
+  border-radius:7px;
   text-align:left;
-  box-shadow:0 1px 2px rgba(12,36,20,.035);
+  box-shadow:none;
 }
 .cm-club-trigger:hover,
 .cm-club-trigger[aria-expanded="true"]{
-  border-color:#aebfb1;
-  background:#fff;
-}
-.cm-club-avatar{
-  width:34px;
-  height:34px;
-  border-radius:8px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
-  background:#e5eee4;
-  color:#27533a;
-  font-size:12px;
-  font-weight:750;
-  letter-spacing:.015em;
+  border-color:#86a88d;
+  background:#2e5742;
 }
 .cm-trigger-content,
 .cm-club-option-info{
@@ -637,12 +623,12 @@ button.back:hover{text-decoration:underline}
 }
 .cm-trigger-content small,
 .cm-club-option-info small{
-  color:#748078;
+  color:#b8d1be;
   font-size:10px;
   line-height:1.4;
 }
 .cm-chevron{
-  color:#77897b;
+  color:#bfdbc6;
   flex:0 0 16px;
   transition:transform .16s ease;
 }
@@ -682,17 +668,11 @@ button.back:hover{text-decoration:underline}
   text-align:left;
   background:transparent;
   color:#26382c;
-  padding:8px;
+  padding:10px 11px;
 }
 .cm-club-option:hover,
 .cm-club-option.selected{
   background:#edf4ed;
-}
-.cm-club-option .cm-club-avatar{
-  width:30px;
-  height:30px;
-  border-radius:6px;
-  font-size:11px;
 }
 .cm-selected-tick{color:#2c6847;font-size:15px;font-weight:750;margin-right:3px}
 .cm-menu-empty{font-size:12px;color:#68786d;padding:9px}
@@ -728,7 +708,7 @@ button.back:hover{text-decoration:underline}
   padding:0 12px 10px;
   margin-bottom:2px;
   font-size:10px;
-  color:#89958c;
+  color:#acc4b2;
   letter-spacing:.075em;
   font-weight:750;
 }
@@ -742,7 +722,7 @@ button.back:hover{text-decoration:underline}
   border:0;
   border-radius:6px;
   background:transparent;
-  color:#4d5f53;
+  color:#dceae0;
   padding:10px 12px;
   text-align:left;
   font-size:13px;
@@ -751,29 +731,29 @@ button.back:hover{text-decoration:underline}
 }
 .cm-nav-link .side-icon,
 .cm-footer-action .side-icon{
-  color:#77897d;
+  color:#aec8b6;
   width:18px;
   height:18px;
   flex:0 0 18px;
 }
 .cm-nav-link:hover,
 .cm-footer-action:hover{
-  color:#203f2a;
-  background:#eaf0ea;
+  color:#fff;
+  background:#29523e;
 }
 .cm-nav-link.active{
-  color:#25543a;
-  background:#e4eee5;
-  font-weight:750;
+  color:#fff;
+  background:#35664c;
+  font-weight:720;
 }
-.cm-nav-link.active .side-icon{color:#25543a}
-.cm-no-club{color:#758377;font-size:12px;line-height:1.55;padding:14px 24px}
+.cm-nav-link.active .side-icon{color:#d7ebd9}
+.cm-no-club{color:#b1c6b6;font-size:12px;line-height:1.55;padding:14px 24px}
 .cm-sidebar-footer{
   margin-top:auto;
   padding:14px 12px 18px;
-  border-top:1px solid #e6ece7;
+  border-top:1px solid #355b44;
 }
-.cm-footer-action{font-size:12px;color:#5b7060}
+.cm-footer-action{font-size:12px;color:#dceae0}
 .cm-workspace-shell{
   min-width:0;
   display:flex;
@@ -898,3 +878,6 @@ button.back:hover{text-decoration:underline}
   .cm-topbar{display:none}
   .cm-main{max-width:none;padding:0}
 }
+
+.cm-sidebar .cm-footer-action:hover{background:#29523e;color:#fff}
+.cm-sidebar .cm-footer-action:hover .side-icon{color:#d9ecdd}
