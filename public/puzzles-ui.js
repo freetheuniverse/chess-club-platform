@@ -129,7 +129,7 @@ function gradebookView(state){
    const completed=status.filter(c=>c.completed).length;
    return '<td class="gradebook-summary-value"><strong>'+completed+' / '+assigned+'</strong><span>completed</span></td>';
  }).join("");
- const rows=displayMembers.map(m=>{
+ const rows=visible.map(m=>{
    const cells=assignments.map(a=>{
      const x=getStatus(m,a);
      return '<td class="gradebook-cell '+x.kind+'" title="'+escape(a.title)+' — '+escape(x.detail)+'">'+
@@ -137,7 +137,8 @@ function gradebookView(state){
        '<span class="gradebook-cell-detail">'+escape(x.detail)+'</span>'+
      '</td>';
    }).join("");
-   return '<tr class="gradebook-member-row" data-gradebook-member="'+escape(m.name.toLocaleLowerCase())+'">'+
+   const hidden=query&&!m.name.toLocaleLowerCase().includes(query);
+   return '<tr class="gradebook-member-row" data-gradebook-member="'+escape(m.name.toLocaleLowerCase())+'"'+(hidden?' hidden':'')+'>'+
      '<th scope="row" class="gradebook-member-col"><span class="gradebook-member-name">'+escape(m.name)+'</span></th>'+
      cells+'</tr>';
  }).join("");
@@ -158,7 +159,8 @@ function gradebookView(state){
    '<table class="gradebook-table"><thead><tr><th scope="col" class="gradebook-member-col gradebook-member-head">Members <span>'+displayMembers.length+'</span></th>'+header+'</tr></thead>'+
    '<tbody><tr class="gradebook-summary-row"><th scope="row" class="gradebook-member-col">Class completion</th>'+summary+'</tr>'+
      (rows||'<tr><td colspan="'+(assignments.length+1)+'" class="gradebook-empty-table">No members match this filter.</td></tr>')+
-   '</tbody></table></div>':
+   '</tbody></table></div>'+
+   '<p id="gradebook-search-empty" class="gradebook-no-results" role="status"'+(displayMembers.length?' hidden':'')+'>No members match your search or filter.</p>':
    '<div class="classwork-empty"><h2>No assignments yet</h2><p>Create an assignment in Classwork to see member progress here.</p></div>';
  return '<div class="top classwork-heading gradebook-page-heading"><div><div class="eyebrow">'+escape(state.data?.club?.name||"Chess club")+'</div>'+
      '<h1>Assignments</h1><p class="classwork-subtitle">Member progress, organized by assignment.</p></div>'+
@@ -359,6 +361,15 @@ function bind({state,render,api,post,action}){
  document.querySelectorAll("[data-puzzle-action]").forEach(el=>el.onclick=()=>{
    const [cmd,...parts]=el.dataset.puzzleAction.split(":");
    const val=parts.join(":");
+   if(cmd==="view"){
+     if(val!=="classwork"&&val!=="gradebook")return;
+     state.assignmentView=val;state.showCreateMenu=false;
+     if(val==="gradebook"&&state.data?.role==="moderator"){
+       action(async()=>{
+         state.gradebook=await api("clubs/"+state.club+"/assignments/gradebook");
+       });
+     }else render();
+   }
    if(cmd==="create-menu"){state.showCreateMenu=!state.showCreateMenu;render();}
    if(cmd==="filter"){state.assignmentFilter=val;render();}
    if(cmd==="new-assignment"){
@@ -413,6 +424,30 @@ function bind({state,render,api,post,action}){
      });
    }
  });
+ const sort=document.getElementById("gradebook-sort");
+ if(sort)sort.onchange=()=>{
+   state.gradebookSort=sort.value==="first"?"first":"last";
+   render();
+ };
+ const statusFilter=document.getElementById("gradebook-status-filter");
+ if(statusFilter)statusFilter.onchange=()=>{
+   state.gradebookFilter=statusFilter.value==="missing"?"missing":"all";
+   render();
+ };
+ const search=document.getElementById("gradebook-search");
+ if(search)search.oninput=()=>{
+   state.gradebookSearch=search.value;
+   const term=search.value.trim().toLocaleLowerCase();
+   let shown=0;
+   document.querySelectorAll(".gradebook-member-row").forEach(row=>{
+     row.hidden=!String(row.dataset.gradebookMember||"").includes(term);
+     if(!row.hidden)shown++;
+   });
+   const count=document.getElementById("gradebook-visible-count");
+   if(count)count.textContent=shown+" members";
+   const empty=document.getElementById("gradebook-search-empty");
+   if(empty)empty.hidden=shown!==0;
+ };
  const form=document.getElementById("puzzle-create-form");
  if(form)form.onsubmit=async e=>{
    e.preventDefault();
