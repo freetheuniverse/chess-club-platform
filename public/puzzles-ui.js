@@ -73,6 +73,105 @@ function assignmentViewTabs(active){
      (active===key?' aria-current="page"':'')+'>'+label+'</button>'
    ).join("")+'</nav>';
 }
+// The gradebook uses *recorded completion* rather than fabricated grades.
+// Members not assigned a task are N/A, not "Missing" or zero.
+function gradebookCellStatus(assignment,cell,today){
+ if(!cell)return {label:"—",detail:"Not assigned",kind:"unassigned",completed:false,missing:false};
+ const late=!!(assignment.due_date && assignment.due_date<today);
+ if(assignment.kind==="puzzle"){
+   const total=Math.max(0,Number(assignment.total_puzzles)||0);
+   const solved=Math.min(total,Math.max(0,Number(cell.solved)||0));
+   const done=total>0 && solved>=total;
+   return {
+     label:solved+" / "+total+" solved",
+     detail:done?"Completed":late?"Past due":solved?"In progress":"Not started",
+     kind:done?"done":late?"missing":solved?"partial":"pending",
+     completed:done,missing:late&&!done
+   };
+ }
+ const done=!!cell.submitted;
+ return {
+   label:done?(assignment.kind==="written"?"Turned in":"Completed"):late?"Missing":"Assigned",
+   detail:done?"Submitted":late?"Past due":"Not submitted",
+   kind:done?"done":late?"missing":"pending",
+   completed:done,missing:late&&!done
+ };
+}
+function gradebookView(state){
+ const data=state.gradebook;
+ const todayDate=new Date();
+ const today=[todayDate.getFullYear(),String(todayDate.getMonth()+1).padStart(2,"0"),String(todayDate.getDate()).padStart(2,"0")].join("-");
+ const assignments=data?.assignments||[];
+ const allMembers=data?.members||[];
+ const cellMap=new Map((data?.cells||[]).map(c=>[c.user_id+"|"+c.key,c]));
+ const getStatus=(m,a)=>gradebookCellStatus(a,cellMap.get(m.id+"|"+a.key),today);
+ const lastName=n=>String(n||"").trim().split(/\\s+/).at(-1).toLocaleLowerCase();
+ const members=[...allMembers].sort((a,b)=>{
+   if(state.gradebookSort==="first")return a.name.localeCompare(b.name);
+   return lastName(a.name).localeCompare(lastName(b.name))||a.name.localeCompare(b.name);
+ });
+ const visible=members.filter(m=>{
+   if(state.gradebookFilter!=="missing")return true;
+   return assignments.some(a=>getStatus(m,a).missing);
+ });
+ const query=String(state.gradebookSearch||"").trim().toLocaleLowerCase();
+ const displayMembers=visible.filter(m=>m.name.toLocaleLowerCase().includes(query));
+ const header=assignments.map(a=>
+   '<th scope="col" class="gradebook-assignment-head"><div class="gradebook-col-top">'+
+     '<span class="gradebook-col-date">'+(a.due_date?"Due "+fmt(a.due_date):"No deadline")+'</span></div>'+
+     '<button type="button" class="gradebook-column-link" data-puzzle-action="open:'+a.key+'" title="'+escape(a.title)+'">'+escape(a.title)+'</button>'+
+     '<span class="gradebook-col-type">'+(a.kind==="puzzle"?"Chess puzzles":a.kind==="written"?"Written response":"Study material")+'</span>'+
+   '</th>'
+ ).join("");
+ const summary=assignments.map(a=>{
+   const status=allMembers.map(m=>getStatus(m,a));
+   const assigned=status.filter(c=>c.kind!=="unassigned").length;
+   const completed=status.filter(c=>c.completed).length;
+   return '<td class="gradebook-summary-value"><strong>'+completed+' / '+assigned+'</strong><span>completed</span></td>';
+ }).join("");
+ const rows=displayMembers.map(m=>{
+   const cells=assignments.map(a=>{
+     const x=getStatus(m,a);
+     return '<td class="gradebook-cell '+x.kind+'" title="'+escape(a.title)+' — '+escape(x.detail)+'">'+
+       '<span class="gradebook-cell-value">'+escape(x.label)+'</span>'+
+       '<span class="gradebook-cell-detail">'+escape(x.detail)+'</span>'+
+     '</td>';
+   }).join("");
+   return '<tr class="gradebook-member-row" data-gradebook-member="'+escape(m.name.toLocaleLowerCase())+'">'+
+     '<th scope="row" class="gradebook-member-col"><span class="gradebook-member-name">'+escape(m.name)+'</span></th>'+
+     cells+'</tr>';
+ }).join("");
+ const controls='<div class="gradebook-controls">'+
+   '<div class="gradebook-controls-left"><label for="gradebook-sort">Sort by</label>'+
+     '<select id="gradebook-sort" class="field gradebook-select">'+
+     '<option value="last"'+(state.gradebookSort!=="first"?' selected':'')+'>Last name</option>'+
+     '<option value="first"'+(state.gradebookSort==="first"?' selected':'')+'>First name</option></select>'+
+     '<label for="gradebook-status-filter">Show</label>'+
+     '<select id="gradebook-status-filter" class="field gradebook-select">'+
+     '<option value="all"'+(state.gradebookFilter!=="missing"?' selected':'')+'>All members</option>'+
+     '<option value="missing"'+(state.gradebookFilter==="missing"?' selected':'')+'>Past-due work</option></select></div>'+
+   '<label class="gradebook-search-wrap" for="gradebook-search">'+
+     '<span>Search members</span><input type="search" id="gradebook-search" class="field gradebook-search" placeholder="Find a member" value="'+escape(state.gradebookSearch||"")+'"></label>'+
+   '</div>';
+ const table=assignments.length?
+   '<div class="gradebook-scroll" role="region" tabindex="0" aria-label="Member assignment progress table; scroll horizontally to see more assignments">'+
+   '<table class="gradebook-table"><thead><tr><th scope="col" class="gradebook-member-col gradebook-member-head">Members <span>'+displayMembers.length+'</span></th>'+header+'</tr></thead>'+
+   '<tbody><tr class="gradebook-summary-row"><th scope="row" class="gradebook-member-col">Class completion</th>'+summary+'</tr>'+
+     (rows||'<tr><td colspan="'+(assignments.length+1)+'" class="gradebook-empty-table">No members match this filter.</td></tr>')+
+   '</tbody></table></div>':
+   '<div class="classwork-empty"><h2>No assignments yet</h2><p>Create an assignment in Classwork to see member progress here.</p></div>';
+ return '<div class="top classwork-heading gradebook-page-heading"><div><div class="eyebrow">'+escape(state.data?.club?.name||"Chess club")+'</div>'+
+     '<h1>Assignments</h1><p class="classwork-subtitle">Member progress, organized by assignment.</p></div>'+
+     assignmentCreateActions(state)+'</div>'+
+     assignmentViewTabs("gradebook")+
+     '<div class="gradebook-view">'+
+     '<div class="gradebook-section-heading"><div><h2>Gradebook</h2><p>Completion and submission tracking, not awarded grades.</p></div>'+
+     '<span id="gradebook-visible-count" class="muted">'+displayMembers.length+' members</span></div>'+
+     controls+
+     (!data?'<div class="classwork-empty">Loading gradebook…</div>':
+       (!data.general_ready?'<p class="classwork-setup">Study and written assignments require migration 0005. Puzzle progress is available.</p>':"")+table)+
+     '</div>';
+}
 function listing(state){
  const entries=combinedAssignments(state);
  const canManage=state.data?.role==="moderator";
@@ -240,6 +339,7 @@ function detail(state){
 function page(state){
  if(state.activeGeneralAssignment)return generalDetail(state);
  if(state.activeAssignment)return detail(state);
+ if(state.data?.role==="moderator" && state.assignmentView==="gradebook")return gradebookView(state);
  return listing(state);
 }
 function updatePuzzleFeedback(state,item){
