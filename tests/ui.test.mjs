@@ -56,10 +56,12 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  assert.match(html,/class="sidebar /);
  assert.match(html,/Assignments/);
  assert.match(html,/Your clubs/);
- assert.match(html,/class="side-clubs sidebar-panel"/);
- assert.match(html,/class="sidebar-panel sidebar-workspace"/);
- assert.doesNotMatch(html,/class="side-section-divider"/);
- assert.ok(html.indexOf('class="side-clubs sidebar-panel"')<html.indexOf('class="sidebar-panel sidebar-workspace"'));
+ assert.match(html,/class="side-clubs" aria-label="Your clubs"/);
+ assert.match(html,/class="sidebar-workspace" aria-label="Club workspace"/);
+ assert.match(html,/class="side-section-heading sidebar-heading-bar"/);
+ assert.match(html,/class="side-workspace-heading sidebar-heading-bar"/);
+ assert.doesNotMatch(html,/sidebar-panel|side-section-divider/);
+ assert.ok(html.indexOf('class="side-clubs"')<html.indexOf('class="sidebar-workspace"'));
  assert.doesNotMatch(html,/side-group-label">Managed/);
  assert.match(html,/side-group-label">Joined/);
  assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
@@ -280,11 +282,14 @@ test("pairing grid assigns equal White and Black areas and centers result action
  assert.match(css,/\.match-result-actions\{[^}]*grid-column:2 \/ -1;[^}]*justify-content:center;/s);
 });
 
-test("navigation uses full-width light panels with no divider",()=>{
+test("navigation uses full-width light header bars only, with green content and no divider",()=>{
  const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
- const panel=css.slice(css.lastIndexOf(".sidebar-panel{"),css.indexOf("}",css.lastIndexOf(".sidebar-panel{"))+1);
- assert.match(panel,/width:100%/);
- assert.match(panel,/background:#f5f8f4/);
- assert.match(css,/\.sidebar-workspace \.side-nav \.side-link\.active/);
- assert.match(css,/gap:14px/);
+ const heading=css.slice(css.lastIndexOf(".sidebar-heading-bar,"),css.indexOf("}",css.lastIndexOf(".sidebar-heading-bar,"))+1);
+ assert.match(heading,/width:100%/);
+ assert.match(heading,/background:#f2f6f1/);
+ const rail=css.slice(css.lastIndexOf(".sidebar{"),css.indexOf("}",css.lastIndexOf(".sidebar{"))+1);
+ assert.match(rail,/padding:18px 0 20px/);
+ assert.match(css,/\.sidebar-workspace \.side-nav\{/);
+ assert.match(css,/background:transparent/);
+ assert.doesNotMatch(css,/\.sidebar-panel\{/);
 });
