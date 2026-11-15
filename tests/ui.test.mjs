@@ -56,6 +56,10 @@ test("Chess Club Manager presents clubs above the selected club workspace",async
  assert.match(html,/class="sidebar /);
  assert.match(html,/Assignments/);
  assert.match(html,/Your clubs/);
+ assert.match(html,/class="side-clubs sidebar-panel"/);
+ assert.match(html,/class="sidebar-panel sidebar-workspace"/);
+ assert.doesNotMatch(html,/class="side-section-divider"/);
+ assert.ok(html.indexOf('class="side-clubs sidebar-panel"')<html.indexOf('class="sidebar-panel sidebar-workspace"'));
  assert.doesNotMatch(html,/side-group-label">Managed/);
  assert.match(html,/side-group-label">Joined/);
  assert.ok(html.indexOf("Your clubs") < html.indexOf("Club workspace"),"Club picker should appear before workspace navigation");
@@ -274,4 +278,13 @@ test("pairing grid assigns equal White and Black areas and centers result action
  assert.match(css,/\.player-slot\.white-player\{text-align:right\}/);
  assert.match(css,/\.player-slot\.black-player\{text-align:left\}/);
  assert.match(css,/\.match-result-actions\{[^}]*grid-column:2 \/ -1;[^}]*justify-content:center;/s);
+});
+
+test("navigation uses full-width light panels with no divider",()=>{
+ const css=readFileSync(new URL("../public/site.css",import.meta.url),"utf8");
+ const panel=css.slice(css.lastIndexOf(".sidebar-panel{"),css.indexOf("}",css.lastIndexOf(".sidebar-panel{"))+1);
+ assert.match(panel,/width:100%/);
+ assert.match(panel,/background:#f5f8f4/);
+ assert.match(css,/\.sidebar-workspace \.side-nav \.side-link\.active/);
+ assert.match(css,/gap:14px/);
 });
