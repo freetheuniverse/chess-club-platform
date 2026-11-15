@@ -445,3 +445,101 @@ button.back:hover{text-decoration:underline}
   .result-chip,.change-result{font-size:10px}
   .bye-row .pill{font-size:9px;padding:3px 5px}
 }
+
+
+/* Classroom-inspired Assignments: clear activity cards, topic sections and to-do filters. */
+.classwork-heading{margin-bottom:22px}
+.classwork-heading h1{font-size:26px;line-height:1.25}
+.classwork-subtitle{font-size:12px;color:var(--subtle);margin-top:7px;line-height:1.5}
+.assignment-create-wrap{position:relative;display:flex;align-items:center;flex:0 0 auto}
+.assignment-create-menu{
+  position:absolute;right:0;top:calc(100% + 7px);min-width:228px;
+  display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);
+  border-radius:6px;box-shadow:0 9px 25px rgba(25,56,36,.13);padding:5px;z-index:20
+}
+.classwork-create-option{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#fff;
+  padding:11px 10px;border-radius:4px;font-size:12px;text-align:left;color:var(--ink);font-weight:570}
+.classwork-create-option:hover,.classwork-create-option:focus-visible{background:#f1f6f0}
+.classwork-create-option svg{width:18px;height:18px;flex:0 0 18px;color:var(--primary)}
+.classwork-layout{display:grid;grid-template-columns:175px minmax(0,1fr);gap:27px;align-items:start}
+.classwork-filters{display:flex;flex-direction:column;gap:3px;padding-top:3px}
+.classwork-filter-title{padding:8px 12px;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.08em;color:var(--subtle)}
+.classwork-filter{font-size:13px;font-weight:530;border:0;background:transparent;color:var(--ink);
+  padding:10px 12px;border-radius:5px;text-align:left;min-height:40px}
+.classwork-filter:hover{background:#e9f0e9}
+.classwork-filter.active{background:#e4f0e5;color:#235038;font-weight:700}
+.classwork-content{min-width:0}
+.classwork-section{margin-bottom:23px}
+.classwork-topic{font-size:14px;font-weight:680;color:var(--primary);padding:4px 0 10px;
+  border-bottom:2px solid #d9e7dc;margin:0 0 11px}
+.classwork-stack{display:flex;flex-direction:column;gap:10px}
+.assignment-card{border:1px solid var(--line);border-radius:6px;background:#fff;
+  padding:15px 16px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;
+  gap:13px;min-height:92px}
+.assignment-card:hover{border-color:#a4bbaa;box-shadow:0 2px 7px rgba(21,52,34,.05)}
+.assignment-icon{height:41px;width:41px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:#42684e}
+.assignment-icon.study{background:#6e7b62}
+.assignment-icon.written{background:#526c86}
+.assignment-main{min-width:0}
+.assignment-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.assignment-kind{font-size:10px;color:var(--subtle);font-weight:640;letter-spacing:.02em}
+.assignment-due{font-size:11px;color:var(--subtle);white-space:nowrap}
+.assignment-title-button{font-size:15px;font-weight:670;line-height:1.4;color:var(--ink);text-align:left;
+  border:0;background:none;padding:6px 0 3px;overflow-wrap:anywhere}
+.assignment-title-button:hover{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.assignment-summary{font-size:11px;color:var(--subtle);margin:2px 0 0}
+.assignment-card-action{align-self:center}
+.assignment-card-action .btn{min-width:58px}
+.classwork-empty{text-align:center;border:1px dashed #b8c8bb;border-radius:7px;
+  background:#fff;padding:46px 16px;font-size:13px;color:var(--subtle)}
+.classwork-empty h2{color:var(--ink);font-size:17px;margin-bottom:8px}
+.classwork-empty p{line-height:1.5}
+.classwork-setup{border:1px solid #dbcda7;background:#fdf9ed;color:#695b36;font-size:12px;
+  line-height:1.55;padding:12px 14px;border-radius:5px;margin-bottom:16px}
+.classwork-detail-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(245px,.8fr);gap:18px;align-items:start}
+.classwork-detail-main{min-width:0;display:flex;flex-direction:column;gap:18px}
+.classwork-detail-grid aside{min-width:0}
+.classwork-instructions{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13px}
+.classwork-resource{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 12px;
+  background:#f5f8f4;border:1px solid var(--line);border-radius:5px;text-decoration:none;
+  color:var(--primary);font-size:13px;font-weight:640}
+.classwork-resource:hover{background:#e9f2e9}
+.classwork-resource svg{width:17px;height:17px}
+.classwork-turnin .panel-body{display:flex;flex-direction:column;gap:12px}
+.classwork-turnin .btn{align-self:flex-start}
+.classwork-turnin form{display:flex;flex-direction:column;gap:11px}
+.classwork-turnin form label{font-size:12px;font-weight:650}
+.classwork-turnin textarea{resize:vertical;min-height:150px}
+.classwork-submissions{display:flex;flex-direction:column}
+.classwork-submission{border-bottom:1px solid var(--line-soft)}
+.classwork-submission:last-child{border-bottom:0}
+.classwork-submission summary{display:flex;justify-content:space-between;gap:15px;align-items:center;
+  padding:13px 17px;cursor:pointer;font-size:13px;font-weight:580;list-style:none}
+.classwork-submission summary::-webkit-details-marker{display:none}
+.classwork-submission summary:hover{background:#f6f9f6}
+.classwork-submission-answer{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;
+  padding:8px 17px 17px;line-height:1.65}
+@media(max-width:1010px){
+ .classwork-layout{grid-template-columns:145px minmax(0,1fr);gap:17px}
+ .classwork-detail-grid{grid-template-columns:minmax(0,1fr) minmax(215px,.7fr)}
+}
+@media(max-width:800px){
+ .classwork-detail-grid{grid-template-columns:1fr}
+}
+@media(max-width:660px){
+ .classwork-layout{grid-template-columns:1fr;gap:14px}
+ .classwork-filters{flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:5px}
+ .classwork-filter-title{display:none}
+ .classwork-filter{white-space:nowrap;min-height:35px;padding:7px 12px}
+ .assignment-card{grid-template-columns:38px minmax(0,1fr);gap:10px;padding:13px}
+ .assignment-icon{width:37px;height:37px}
+ .assignment-card-action{grid-column:2;justify-self:end}
+ .assignment-card-top{gap:6px}
+ .classwork-heading{align-items:start;gap:14px}
+}
+@media(max-width:420px){
+ .assignment-create-menu{right:0;min-width:206px}
+ .assignment-due{white-space:normal}
+ .assignment-title-button{font-size:14px}
+}
