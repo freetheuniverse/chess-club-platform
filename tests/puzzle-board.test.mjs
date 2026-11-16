@@ -31,7 +31,7 @@ function fixture(fen,played=[]){
   const state={club:"club1",activeAssignment:"a1",puzzleIndex:0,puzzleSquare:null,puzzleFeedback:"",
     assignmentData:{assignment:{id:"a1",title:"Knight practice",theme:"fork",difficulty:"normal",due_date:null},
       items:[item],canSolve:true,summary:[]}};
-  return {window,document,state,item,calls};
+  return {window,document,state,item,calls,elements};
 }
 
 test("assignment renders an accessible chessboard host for the animated board library",()=>{
@@ -139,4 +139,48 @@ test("completed puzzles are read-only on Chessground",()=>{
   const h=mountAdapter({solved:true});
   assert.equal(h.creates[0].movable.color,undefined);
   assert.equal(h.creates[0].movable.dests.size,0);
+});
+
+test("Student grid mounts all puzzle boards independently and destroys every instance",()=>{
+ const h=fixture("4k3/8/8/4n3/8/8/8/4K3 b - - 0 1");
+ h.state.assignmentData.items.push({...h.item,id:"item2",position:2});
+ h.elements.set("puzzle-board-host-1",{textContent:""});
+ h.window.PuzzleModule.bind({
+   state:h.state,render:()=>{},api:async()=>{},
+   action:async fn=>fn(),post:async()=>({correct:false,solved:false,played:[],mistakes:1})
+ });
+ assert.equal(h.calls.created,2);
+ h.window.PuzzleModule.destroyBoard();
+ assert.equal(h.calls.destroyed,2);
+});
+
+test("Chessground preview steps a moderator through a solution without sending student progress",()=>{
+ const creates=[],updates=[];
+ const Chessground=(element,config)=>{
+   creates.push(config);
+   return {set:c=>updates.push(c),toggleOrientation:()=>{},destroy:()=>{}};
+ };
+ const window={prompt:()=>"q"};
+ const context=vm.createContext({Chessground,Chess,window,console});
+ const js=adapterSource.replace(/^import .*;$/gm,"")
+   .replace("export function legalDestinations","function legalDestinations")
+   .replace("export {create};","");
+ vm.runInContext(js,context);
+ const item={start_fen:"4k3/8/8/4n3/8/8/8/4K3 b - - 0 1",
+   played:[],solved:false,mistakes:0,solution:["e5d3"]};
+ let posted=0;
+ const board=window.PuzzleBoardFactory.create({
+   element:{},item,preview:true,interactive:true,
+   onMove:()=>{posted++;},onError:()=>{}
+ });
+ board.step();
+ assert.deepEqual(item.played,["e5d3"]);
+ assert.equal(item.solved,true);
+ assert.equal(posted,0);
+ assert.equal(updates.at(-1).movable.color,undefined);
+ board.reset();
+ assert.deepEqual(item.played,[]);
+ assert.equal(item.solved,false);
+ assert.equal(updates.at(-1).fen,item.start_fen);
+ board.destroy();
 });
