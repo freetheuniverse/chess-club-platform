@@ -177,6 +177,14 @@ npm run db:migrate:cloud
 ```
 
 The new `0005_general_assignments.sql` creates three additive tables and leaves existing club, tournament, attendance, message, and Lichess puzzle records intact. Until applied, the Assignments page still shows existing puzzles and displays a notice explaining that study/written activities need setup.
+### Puzzle assignment studio and student puzzle grid
+
+Creating a **Chess puzzle practice** assignment opens a wide, scrollable editor with grouped Lichess puzzle topics, difficulty, a **Preview mode** selector (practice or review moves), number of puzzles (1–10), title, deadline, and member selection. The moderator selects **Generate puzzles** before publishing. The preview displays responsive Chessground boards, three across on larger screens, with an individual toolbar for **Analyze Position**, **View Full Game**, **Change this puzzle**, **Remove this puzzle**, **Reset board**, and **Play next move**. Lichess analysis/game buttons open the corresponding Lichess pages. The final assignment uses only the previewed puzzle IDs; generating or changing the preview never writes assignment/progress records.
+
+All enrolled members open the assigned puzzles in a responsive grid, not a left-hand puzzle navigation panel. Each board keeps separate move handling, reset/flip controls, status, and recorded progress. Student **Analyze Position** and **View Full Game** actions are unavailable until that specific puzzle has been solved (club moderators may inspect them earlier). A student's Reset board returns to their saved progress; it does not erase recorded attempts. The play-next-move solution-reveal action is restricted to the moderator's unpublished preview, not assigned student puzzles.
+
+The puzzle preview and source-game API routes are authorized and reuse the existing puzzle database; **no new D1 migration** is required for these grid changes. Lichess may rate-limit or fail individual puzzle requests; the editor shows those errors without publishing incomplete selections.
+
 
 ## Account-free tournament guests and tournament management
 
