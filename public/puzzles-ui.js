@@ -47,8 +47,10 @@ function puzzleTool(name,label,action,disabled=false){
    next:'<path d="m6 4 11 8-11 8z"/>',
    flip:'<path d="M4 8V4h4M20 16v4h-4M4 4c3-2 7-2 10 0M20 20c-3 2-7 2-10 0"/>'
  };
- return '<button type="button" class="puzzle-tool" title="'+escape(label)+'" aria-label="'+escape(label)+'" data-puzzle-action="'+escape(action)+'"'+(disabled?' disabled':'')+'>'+
-   '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shapes[name]+'</svg></button>';
+ const shortLabels={analyze:"Analyze",game:"Full game",change:"Replace",remove:"Remove",reset:"Reset",next:"Next move",flip:"Flip"};
+ return '<button type="button" class="puzzle-tool'+(name==="remove"?" puzzle-tool-danger":"")+'" title="'+escape(label)+'" aria-label="'+escape(label)+'" data-puzzle-action="'+escape(action)+'"'+(disabled?' disabled':'')+'>'+
+   '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shapes[name]+'</svg>'+
+   '<span class="puzzle-tool-label">'+escape(shortLabels[name]||label)+'</span></button>';
 }
 
 function assignmentTypeIcon(kind){
@@ -738,7 +740,7 @@ function bind({state,render,api,post,action}){
      try{
        if(!window.PuzzleBoardFactory)throw Error("Chessboard component failed to load. Please refresh.");
        const board=window.PuzzleBoardFactory.create({
-         element:host,item,interactive:!!state.assignmentData.canSolve&&!item.solved,
+         element:host,item,interactive:!!state.assignmentData.canSolve,
          onMove:async uci=>{
            const result=await post("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/items/"+item.id,{move:uci});
            item.played=result.played;
