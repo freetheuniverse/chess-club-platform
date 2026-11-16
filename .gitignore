@@ -6,3 +6,6 @@ node_modules/
 public/puzzle-board.js
 public/assets/licenses/
 public/assets/chessground/
+.puzzle-import/
+lichess_db_puzzle.csv.zst
+lichess_db_puzzle.csv
