@@ -8,10 +8,13 @@
     "deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply chess-club-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply chess-club-db --remote",
-    "check": "node --check worker/index.js && node --check worker/puzzles.js && node --check worker/puzzle-archive.js && node --check worker/puzzle-starter.js && node --check worker/assignments.js && node --check public/app.js && node --check public/puzzles-ui.js && node --check public/puzzle-board-entry.js && node --check scripts/copy-chessground-assets.mjs && node --test tests/*.test.mjs",
+    "check": "node --check worker/index.js && node --check worker/puzzles.js && node --check worker/puzzle-archive.js && node --check worker/puzzle-starter.js && node --check worker/assignments.js && node --check public/app.js && node --check public/puzzles-ui.js && node --check public/puzzle-board-entry.js && node --check scripts/copy-chessground-assets.mjs && node --check scripts/puzzle-import-core.mjs && node --check scripts/import-lichess-puzzles.mjs && node --check scripts/upload-puzzle-bank.mjs && node --test tests/*.test.mjs",
     "deploy:cloud": "npm run build:client && wrangler deploy --config wrangler.cloud.jsonc",
     "db:migrate:cloud": "wrangler d1 migrations apply chess-club-db --remote --config wrangler.cloud.jsonc",
-    "build:client": "esbuild public/puzzle-board-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-board.js && node scripts/copy-chessground-assets.mjs"
+    "build:client": "esbuild public/puzzle-board-entry.js --bundle --format=iife --target=es2022 --outfile=public/puzzle-board.js && node scripts/copy-chessground-assets.mjs",
+    "puzzles:prepare": "node scripts/import-lichess-puzzles.mjs",
+    "puzzles:upload": "node scripts/upload-puzzle-bank.mjs",
+    "puzzles:import": "node scripts/import-lichess-puzzles.mjs --apply"
   },
   "devDependencies": {
     "wrangler": "^4.0.0",
