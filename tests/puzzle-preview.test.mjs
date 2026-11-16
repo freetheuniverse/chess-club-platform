@@ -136,13 +136,17 @@ test("Cached topic puzzles are reusable without an upstream request",async()=>{
  }finally{globalThis.fetch=before;}
 });
 
-test("Rate limits set a shared cooldown; subsequent requests do not hammer Lichess",async()=>{
+test("Rate limits set a shared cooldown; fallback does not hammer live Lichess",async()=>{
  const {db,rate}=fakeDb();
  const before=globalThis.fetch;
- let upstream=0;
- globalThis.fetch=async()=>{
-   upstream++;
-   return new Response("rate limit",{status:429,headers:{"Retry-After":"75"}});
+ let liveCalls=0,archiveCalls=0;
+ globalThis.fetch=async url=>{
+   if(String(url).startsWith("https://lichess.org/")){
+     liveCalls++;
+     return new Response("rate limit",{status:429,headers:{"Retry-After":"75"}});
+   }
+   archiveCalls++;
+   return new Response(JSON.stringify({rows:[]}),{status:200});
  };
  try{
    const first=await call({db});
@@ -152,7 +156,42 @@ test("Rate limits set a shared cooldown; subsequent requests do not hammer Liche
    assert.ok(rate.blocked_until>Math.floor(Date.now()/1000));
    const again=await call({db});
    assert.equal(again.status,429);
-   assert.equal(upstream,1);
+   assert.equal(liveCalls,1);
+   assert.ok(archiveCalls>=1);
+ }finally{globalThis.fetch=before;}
+});
+test("X-ray attack previews work from the public Lichess dataset during API cooldown",async()=>{
+ const {db,bank}=fakeDb();
+ const before=globalThis.fetch;
+ let upstreamCalls=0;
+ const example={
+   PuzzleId:"00Bg4",
+   FEN:"3r2k1/1q3ppp/p2rp3/Qp1B4/7P/P4P2/1PP3P1/1K1R3R b - - 0 21",
+   Moves:"d6d5 a5d8 d5d8 d1d8",
+   Rating:1373,
+   Themes:["backRankMate","endgame","mate","mateIn2","short","xRayAttack"],
+   GameId:"6qWf8wOP/black#42",
+   OpeningTags:[]
+ };
+ globalThis.fetch=async url=>{
+   if(String(url).startsWith("https://lichess.org/")){
+     upstreamCalls++;
+     return new Response("rate limit",{status:429});
+   }
+   return new Response(JSON.stringify({rows:[{row:example}]}),{status:200});
+ };
+ try{
+   const response=await call({db,data:{theme:"xRayAttack",difficulty:"normal",count:1}});
+   assert.equal(response.status,200);
+   const output=await response.json();
+   assert.equal(output.puzzles.length,1);
+   assert.equal(output.puzzles[0].lichess_id,"00Bg4");
+   assert.match(output.warning,/public Lichess dataset/i);
+   assert.ok(bank.has("00Bg4"));
+   assert.equal(upstreamCalls,1);
+   const repeat=await call({db,data:{theme:"xRayAttack",difficulty:"normal",count:1}});
+   assert.equal(repeat.status,200);
+   assert.equal(upstreamCalls,1);
  }finally{globalThis.fetch=before;}
 });
 
