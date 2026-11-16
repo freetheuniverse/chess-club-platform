@@ -184,3 +184,38 @@ test("Chessground preview steps a moderator through a solution without sending s
  assert.equal(updates.at(-1).fen,item.start_fen);
  board.destroy();
 });
+
+test("Reset on a completed puzzle restores the start and permits replay without changing recorded completion",async()=>{
+ const creates=[],updates=[];
+ const Chessground=(element,config)=>{
+   creates.push(config);
+   return {set:c=>updates.push(c),toggleOrientation:()=>{},destroy:()=>{}};
+ };
+ const window={prompt:()=>"q"};
+ const context=vm.createContext({Chessground,Chess,window,console});
+ const js=adapterSource.replace(/^import .*;$/gm,"")
+   .replace("export function legalDestinations","function legalDestinations")
+   .replace("export {create};","");
+ vm.runInContext(js,context);
+ const fen="4k3/8/8/4n3/8/8/8/4K3 b - - 0 1";
+ const item={start_fen:fen,played:["e5d3"],solved:true,mistakes:2};
+ let saved=0;
+ const board=window.PuzzleBoardFactory.create({
+   element:{},item,interactive:true,
+   onMove:async()=>{saved++;},onError:()=>{}
+ });
+ assert.equal(creates[0].movable.color,undefined);
+ board.reset();
+ assert.equal(updates.at(-1).fen,fen);
+ assert.equal(updates.at(-1).movable.color,"black");
+ creates[0].movable.events.after("e5","d3");
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(saved,0);
+ assert.equal(item.solved,true);
+ assert.equal(item.mistakes,2);
+ assert.deepEqual(Array.from(item.played),["e5d3"]);
+ assert.equal(updates.at(-1).movable.color,undefined);
+ board.reset();
+ assert.equal(updates.at(-1).fen,fen);
+ board.destroy();
+});
