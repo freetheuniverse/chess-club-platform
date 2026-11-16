@@ -3,7 +3,7 @@ import { Chess } from "chess.js";
 const reply = (data, status=200) => new Response(JSON.stringify(data), {
   status, headers: {"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}
 });
-const fail = (message,status=400) => reply({error:message},status);
+const fail = (message,status=400,details={}) => reply({error:message,...details},status);
 const randomId = () => crypto.randomUUID();
 const ALLOWED_THEMES = new Set(["mix","fork","pin","skewer","discoveredAttack","doubleCheck","mateIn1","mateIn2","mateIn3","endgame","opening","middlegame","hangingPiece","defensiveMove","promotion","sacrifice","backRankMate","oneMove","short","attraction","arabianMate","anastasiaMate","bodenMate","doubleBishopMate","dovetailMate","hookMate","smotheredMate","mateIn4","mateIn5","zugzwang","pawnEndgame","rookEndgame","queenEndgame","queenRookEndgame","bishopEndgame","knightEndgame","advancedPawn","attackingF2F7","xRayAttack","deflection","trappedPiece","interference","capturingDefender","clearance","exposedKing","kingsideAttack","queensideAttack","quietMove","enPassant","underPromotion","castling","crushing","advantage","equality","master","veryLong","long","Sicilian_Defense","French_Defense","Ruy_Lopez","Italian_Game","Caro-Kann_Defense","Queens_Gambit_Declined","English_Opening","Scotch_Game"]);
 const ALLOWED_DIFFICULTIES = new Set(["easiest","easier","normal","harder","hardest"]);
@@ -41,16 +41,41 @@ function createStartFen(item){
   for(const m of p.solution)applyUci(chess,m);
   return startFen;
 }
-async function getLichess(url) {
-  const res=await fetch(url,{
-    headers:{Accept:"application/json","User-Agent":"ChessClubPlatform/0.1 (club puzzle assignments)"},
-    signal:AbortSignal.timeout(15000)
-  });
-  if(res.status===429)throw Object.assign(Error("Lichess is rate-limiting requests. Wait one minute before trying again."),{status:429});
-  if(res.status===401 || res.status===403)throw Object.assign(Error("Lichess did not allow this puzzle request; try assigning a specific public puzzle ID instead."),{status:502});
-  if(!res.ok)throw Object.assign(Error("Lichess puzzle request failed (HTTP "+res.status+")."),{status:502});
-  return res.json();
+const COOLDOWN_SECONDS=60;
+async function bankReady(db){
+ return !!(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='puzzle_bank'").first());
 }
+async function getLichess(url,db){
+ // Persist the cooldown across Worker isolates so new visitors do not immediately
+ // retry a provider that is already replying 429.
+ const blocked=await db.prepare("SELECT blocked_until FROM lichess_rate_state WHERE name='lichess'").first();
+ const now=Math.floor(Date.now()/1000);
+ if(blocked && blocked.blocked_until>now){
+   const left=Math.max(1,blocked.blocked_until-now);
+   throw Object.assign(Error("Lichess is temporarily limiting puzzle requests. Cached puzzles can still be used. Try again in about "+left+" seconds."),{
+     status:429,retry_after_seconds:left
+   });
+ }
+ const response=await fetch(url,{
+   headers:{Accept:"application/json","User-Agent":"ChessClubPlatform/0.1 (club puzzle assignments)"},
+   signal:AbortSignal.timeout(15000)
+ });
+ if(response.status===429){
+   const seconds=Math.max(COOLDOWN_SECONDS,Math.min(300,Number.parseInt(response.headers.get("Retry-After")||"60",10)||60));
+   await db.prepare("INSERT INTO lichess_rate_state(name,blocked_until) VALUES('lichess',?) "+
+     "ON CONFLICT(name) DO UPDATE SET blocked_until=max(lichess_rate_state.blocked_until,excluded.blocked_until)")
+     .bind(now+seconds).run();
+   throw Object.assign(Error("Lichess is temporarily rate-limiting new puzzles. Try again in about "+seconds+" seconds, or choose a cached topic."),{
+     status:429,retry_after_seconds:seconds
+   });
+ }
+ if(response.status===401 || response.status===403)
+   throw Object.assign(Error("Lichess refused this puzzle request. Try another public puzzle ID."),{status:502});
+ if(!response.ok)
+   throw Object.assign(Error("Lichess puzzle request failed (HTTP "+response.status+")."),{status:502});
+ return response.json();
+}
+
 function sanitizedPuzzle(item){
   const p=item?.puzzle;
   if(!p || !/^[a-zA-Z0-9]{5}$/.test(p.id||""))throw Error("Lichess returned an invalid puzzle ID");
@@ -69,52 +94,107 @@ function sanitizedPuzzle(item){
 }
 // Only moderators receive a preview that contains the solution. The client
 // never exposes this preview to student accounts.
-async function puzzlePreview(payload){
-  const theme=String(payload?.theme||"mix"), difficulty=String(payload?.difficulty||"normal");
-  const count=Number(payload?.count||5);
-  if(!ALLOWED_THEMES.has(theme)||!ALLOWED_DIFFICULTIES.has(difficulty))
-    return fail("Select a supported Lichess topic and difficulty.");
-  if(!Number.isInteger(count)||count<1||count>10)return fail("Choose 1–10 puzzles.");
-  const ids=String(payload?.puzzle_ids||"").trim().split(/[\s,;]+/).filter(Boolean);
-  const exclude=Array.isArray(payload?.exclude_ids)?payload.exclude_ids:[];
-  if(ids.length>10||ids.some(id=>!/^[a-zA-Z0-9]{5}$/.test(id)))
-    return fail("Use up to ten valid five-character Lichess puzzle IDs.");
-  if(exclude.length>10||exclude.some(id=>typeof id!=="string"||!/^[a-zA-Z0-9]{5}$/.test(id)))
-    return fail("Invalid excluded puzzle IDs.");
-  let raw;
-  try{
-    if(ids.length){
-      raw=[];
-      for(const id of [...new Set(ids)])
-        raw.push(await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(id)));
-    }else{
-      const url=new URL("https://lichess.org/api/puzzle/batch/"+encodeURIComponent(theme));
-      url.searchParams.set("nb",String(Math.min(10,count+exclude.length)));
-      url.searchParams.set("difficulty",difficulty);
-      const response=await getLichess(url.toString());
-      raw=Array.isArray(response?.puzzles)?response.puzzles:[];
-    }
-  }catch(e){return fail(e.message,e.status||502);}
-  const seen=new Set(exclude);
-  const prepared=[];
-  try{
-    for(const p of raw){
-      const clean=sanitizedPuzzle(p);
-      if(seen.has(clean.lichess_id))continue;
-      seen.add(clean.lichess_id);
-      const gameId=p?.game?.id;
-      prepared.push({
-        id:clean.lichess_id, lichess_id:clean.lichess_id, rating:clean.rating,
-        themes:JSON.parse(clean.themes),start_fen:clean.start_fen,
-        solution:JSON.parse(clean.solution_json),
-        game_id:typeof gameId==="string"&&/^[a-zA-Z0-9]{8}$/.test(gameId)?gameId:null
-      });
-      if(prepared.length>=count)break;
-    }
-  }catch(e){return fail("Could not prepare puzzle preview: "+e.message,502);}
-  if(!prepared.length)return fail("No different puzzles were returned. Try a different topic or difficulty.",404);
-  return reply({puzzles:prepared});
+function previewResultFromBank(row){
+ return {
+   id:row.lichess_id,lichess_id:row.lichess_id,rating:Number(row.rating)||0,
+   themes:JSON.parse(row.themes),start_fen:row.start_fen,
+   solution:JSON.parse(row.solution_json),game_id:row.game_id||null
+ };
 }
+async function puzzlePreview(db,club,user,payload){
+ const theme=String(payload?.theme||"mix"),difficulty=String(payload?.difficulty||"normal");
+ const count=Number(payload?.count||5);
+ if(!ALLOWED_THEMES.has(theme)||!ALLOWED_DIFFICULTIES.has(difficulty))
+   return fail("Select a supported topic and difficulty.");
+ if(!Number.isInteger(count)||count<1||count>10)return fail("Choose 1–10 puzzles.");
+ const ids=String(payload?.puzzle_ids||"").trim().split(/[\\s,;]+/).filter(Boolean);
+ const excluded=Array.isArray(payload?.exclude_ids)?payload.exclude_ids:[];
+ if(ids.length>10||ids.some(id=>!/^[a-zA-Z0-9]{5}$/.test(id)))
+   return fail("Use up to ten valid five-character Lichess puzzle IDs.");
+ if(excluded.length>10||excluded.some(id=>typeof id!=="string"||!/^[a-zA-Z0-9]{5}$/.test(id)))
+   return fail("Invalid excluded puzzle IDs.");
+ if(!(await bankReady(db)))
+   return fail("Puzzle previews require database migration 0006. Run npm run db:migrate:cloud.",503);
+ const excludedSet=new Set(excluded);
+ const prepared=[];
+ const used=new Set(excluded);
+ // Prefer previously fetched public positions. This avoids upstream calls
+ // when the teacher regenerates or assigns similar material.
+ if(ids.length){
+   for(const id of [...new Set(ids)]){
+     if(used.has(id))continue;
+     const cached=await db.prepare("SELECT * FROM puzzle_bank WHERE lichess_id=?").bind(id).first();
+     if(cached){prepared.push(previewResultFromBank(cached));used.add(id);}
+   }
+ }else{
+   const rows=(await db.prepare(
+     "SELECT * FROM puzzle_bank WHERE source_theme=? AND source_difficulty=? ORDER BY RANDOM() LIMIT 50"
+   ).bind(theme,difficulty).all()).results;
+   for(const row of rows){
+     if(used.has(row.lichess_id))continue;
+     prepared.push(previewResultFromBank(row));used.add(row.lichess_id);
+     if(prepared.length>=count)break;
+   }
+ }
+ let rateLimited=false,limitError=null;
+ if(prepared.length<count){
+   try{
+     let raw=[];
+     if(ids.length){
+       // Fetch any explicit IDs not yet in our own bank. Exactly one request
+       // runs at a time, honoring Lichess API guidance.
+       for(const id of [...new Set(ids)]){
+         if(used.has(id)||excludedSet.has(id))continue;
+         raw.push(await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(id),db));
+       }
+     }else{
+       const url=new URL("https://lichess.org/api/puzzle/batch/"+encodeURIComponent(theme));
+       url.searchParams.set("nb",String(Math.min(10,count+excluded.length)));
+       url.searchParams.set("difficulty",difficulty);
+       const response=await getLichess(url.toString(),db);
+       raw=Array.isArray(response?.puzzles)?response.puzzles:[];
+     }
+     const newItems=[];
+     for(const entry of raw){
+       const p=sanitizedPuzzle(entry);
+       if(used.has(p.lichess_id))continue;
+       const gameId=entry?.game?.id;
+       const obj={
+         id:p.lichess_id,lichess_id:p.lichess_id,rating:p.rating,
+         themes:JSON.parse(p.themes),start_fen:p.start_fen,
+         solution:JSON.parse(p.solution_json),
+         game_id:typeof gameId==="string"&&/^[a-zA-Z0-9]{8}$/.test(gameId)?gameId:null
+       };
+       newItems.push(obj);prepared.push(obj);used.add(p.lichess_id);
+       if(prepared.length>=count)break;
+     }
+     if(newItems.length){
+       await db.batch(newItems.map(p=>db.prepare(
+         "INSERT OR IGNORE INTO puzzle_bank(lichess_id,source_theme,source_difficulty,rating,themes,start_fen,solution_json,game_id) VALUES(?,?,?,?,?,?,?,?)"
+       ).bind(p.lichess_id,theme,difficulty,p.rating,JSON.stringify(p.themes),p.start_fen,JSON.stringify(p.solution),p.game_id)));
+     }
+   }catch(e){
+     if(e.status===429){rateLimited=true;limitError=e;}
+     else if(!prepared.length)return fail("Could not load new puzzles: "+e.message,e.status||502);
+   }
+ }
+ if(!prepared.length){
+   return fail(limitError?.message||"No puzzles are available for this topic. Try a different topic.",limitError?.status||404,{
+     retry_after_seconds:limitError?.retry_after_seconds||null
+   });
+ }
+ const selected=prepared.slice(0,count);
+ const drafts=selected.map(p=>({...p,preview_id:randomId()}));
+ await db.batch(drafts.map(p=>
+   db.prepare("INSERT INTO puzzle_preview_drafts(id,lichess_id,club_id,user_id) VALUES(?,?,?,?)")
+    .bind(p.preview_id,p.lichess_id,club,user.id)
+ ));
+ return reply({
+   puzzles:drafts,cached:prepared.length>0,
+   warning:rateLimited?"Showing available cached puzzles. Lichess is temporarily limiting new requests.":null
+ });
+}
+
 async function puzzleGameSource(db,club,role,user,assignmentId,itemId){
   const target=await db.prepare(
     "SELECT i.lichess_id FROM puzzle_assignment_items i "+
@@ -133,7 +213,7 @@ async function puzzleGameSource(db,club,role,user,assignmentId,itemId){
     if(!done?.solved_at)return fail("Complete the puzzle before viewing its full game.",403);
   }
   let raw;
-  try{raw=await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(target.lichess_id));}
+  try{raw=await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(target.lichess_id),db);}
   catch(e){return fail(e.message,e.status||502);}
   const gameId=raw?.game?.id;
   if(typeof gameId!=="string"||!/^[a-zA-Z0-9]{8}$/.test(gameId))
@@ -254,7 +334,7 @@ export async function handlePuzzleRequest({db,club,user,role,path,method,req}){
     const key=path[4],id=path[5];
     if(key==="preview" && path.length===5 && method==="POST"){
       if(role!=="moderator")return fail("Only moderators can preview solutions.",403);
-      return puzzlePreview(await req.json());
+      return puzzlePreview(db,club,user,await req.json());
     }
     if(key!=="assignments")return fail("Puzzle endpoint not found.",404);
     if(path.length===5 && method==="GET")return listAssignments(db,club,user,role);
