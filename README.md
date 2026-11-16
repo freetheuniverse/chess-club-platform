@@ -194,6 +194,38 @@ npm run db:migrate:cloud
 
 Migration `0006_puzzle_preview_cache.sql` creates a shared cache of public Lichess positions, an owner-scoped preview selection table, and a provider cooldown record. It seeds previously assigned puzzles so some topic selections can work without a new upstream request. Existing clubs, assignments and students' progress are unchanged. Cloudflare's website deployment **does not** apply D1 migrations automatically.
 
+### Import a curated Lichess puzzle library into D1
+
+Chess Club Manager can operate with thousands of local puzzle positions rather than making a live Lichess request whenever an assignment is created. The importer streams the **official CC0 Lichess CSV.zst file**, selects positions across supported themes and five rating bands, rejects low-popularity/unreliable puzzles, verifies the full chess line using chess.js, and generates repeatable `INSERT OR IGNORE` SQL batches for the existing `puzzle_bank` table. It uses Node's native streaming Zstandard decompression, so **Node.js 22.15 or newer** is required for the official `.zst` file.
+
+**One-time Windows setup and import** (the user runs this on their own computer, where Wrangler is authenticated):
+
+```bat
+cd /d "C:\\Users\\Aidan Flores\\Documents\\chess-club-platform"
+git pull origin dev
+npm install
+npm run db:migrate:cloud
+npm run puzzles:import
+```
+
+The default limit is **12,000 selected puzzles**. The tool streams the official download directly, so it **does not require saving or unpacking the multi-GB CSV locally**. It generates `.puzzle-import/batch-0001.sql`, etc., plus a manifest, and uploads those files sequentially to the existing remote D1 database using Wrangler. It can be run again; duplicate puzzle IDs are ignored.
+
+On Free plans, Cloudflare D1 currently has a **500 MB per-database storage limit** and **100,000 rows written per day**; each index can increase writes. Start with the default batch, examine your D1 usage, and avoid raising the limit to 50,000 in one day without checking quotas. A 12,000-puzzle curated library is meant to work within typical Free-plan limits, but usage and current database size must still be monitored. Cloudflare deployments themselves do not import data.
+
+Other options:
+
+```bat
+npm run puzzles:prepare -- --source "C:\\path\\to\\lichess_db_puzzle.csv.zst" --limit 15000
+npm run puzzles:upload
+npm run puzzles:import -- --limit 8000
+```
+
+Use `puzzles:prepare` to generate SQL without uploading, or a previously downloaded CSV or CSV.zst file as the source. `puzzles:upload` **resumes interrupted transfers**, using `.puzzle-import/upload-state.json`. To retry after a network or quota error, run `npm run puzzles:upload` instead of re-downloading the official archive. The generated files and giant puzzle archive filenames are in `.gitignore`.
+
+After importing, **Assignments → Create → Puzzle practice** shows the number of matching puzzles already in the local library for the chosen topic and difficulty. With sufficient matching positions, Generate puzzles, Replace, and Create assignment use the D1 cache and make **no live Lichess API requests**. Specific puzzle IDs that were not imported can still use the existing API fallback.
+
+Importing only reads public puzzle records and writes them to `puzzle_bank`; it does not change club memberships, student records, existing puzzle assignments, game scores or results. No new migration is required beyond `0006_puzzle_preview_cache.sql`.
+
 ### Public puzzle dataset fallback
 
 The application does not rely solely on the limited Lichess live puzzle API. If a topic has no cached positions and Lichess responds with HTTP 429 (or another temporary error), the Worker attempts to retrieve real, CC0-licensed Lichess puzzle records through the public `Lichess/chess-puzzles` dataset on Hugging Face. It independently validates the opening FEN, applies the original opponent setup move, verifies every solution move with chess.js, and saves selected positions into the existing D1 puzzle bank. This secondary source uses **approximate absolute puzzle-rating bands** for difficulty rather than Lichess's personalized difficulty calculation.
