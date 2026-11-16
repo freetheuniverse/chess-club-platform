@@ -290,6 +290,7 @@ function assignmentForm(state){
  '</select></label>'+
  '<label>Puzzles<input name="count" class="field" type="number" min="1" max="10" value="'+Number(d.count||6)+'"></label>'+
  '</div>'+
+ '<p class="puzzle-library-status" id="puzzle-library-status" role="status">Checking locally available puzzles…</p>'+
  '<div class="puzzle-preview-top"><div><h3>Puzzle selection</h3><p class="muted">Inspect positions, replace unsuitable puzzles, or step through a solution before publishing.</p></div>'+
  '<div class="puzzle-editor-actions">'+
    btn("Generate puzzles","generate-preview","btn ghost small")+
@@ -719,6 +720,34 @@ function bind({state,render,api,post,action}){
    finally{if(btnSubmit)btnSubmit.disabled=false;}
  };
 
+ const localBank=document.getElementById("puzzle-library-status");
+ const bankForm=document.getElementById("puzzle-create-form");
+ if(localBank&&bankForm){
+   const getAvailable=async()=>{
+     const club=state.club;
+     const theme=bankForm.querySelector('[name="theme"]').value;
+     const difficulty=bankForm.querySelector('[name="difficulty"]').value;
+     try{
+       const data=await api("clubs/"+club+"/puzzles/bank?theme="+encodeURIComponent(theme)+"&difficulty="+encodeURIComponent(difficulty));
+       if(!localBank.isConnected||club!==state.club||
+          theme!==bankForm.querySelector('[name="theme"]').value||
+          difficulty!==bankForm.querySelector('[name="difficulty"]').value)return;
+       localBank.textContent="Local library: "+data.matching.toLocaleString()+" matching puzzles · "+
+         data.total.toLocaleString()+" total. Generate puzzles to preview them.";
+     }catch(e){
+       if(localBank.isConnected)localBank.textContent="Local puzzle count unavailable.";
+     }
+   };
+   for(const inputName of ["theme","difficulty"]){
+     const control=bankForm.querySelector('[name="'+inputName+'"]');
+     if(control)control.onchange=()=>{
+       capturePuzzleDraft(state);
+       localBank.textContent="Checking locally available puzzles…";
+       void getAvailable();
+     };
+   }
+   void getAvailable();
+ }
  const previewMode=document.querySelector('#puzzle-create-form select[name="mode"]');
  if(previewMode)previewMode.onchange=()=>{
    const draft=capturePuzzleDraft(state);
