@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import {STARTER_PUZZLES} from "./puzzle-starter.js";
 
 // Secondary source: official CC0 Lichess chess puzzles published through
 // Hugging Face's public Dataset Viewer API. Unlike /api/puzzle/batch, this
@@ -52,6 +53,14 @@ export function fromDatasetRow(row,theme,difficulty){
 export async function fetchArchivePuzzles({theme,difficulty,count,exclude=[]}){
  const items=[];
  const seen=new Set(exclude);
+ // Work completely offline when live Lichess and the public dataset service
+ // are both unavailable. All rows below are genuine, attributed CC0 puzzles.
+ for(const row of STARTER_PUZZLES){
+   const item=fromDatasetRow(row,theme,difficulty);
+   if(!item||seen.has(item.lichess_id))continue;
+   seen.add(item.lichess_id);items.push(item);
+   if(items.length>=count)break;
+ }
  let failures=0;
  for(let page=0;page<MAX_PAGES&&items.length<count;page++){
    // Evenly spread page offsets over the dataset, rather than repeatedly
