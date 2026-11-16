@@ -39,7 +39,12 @@ function create({element,item,interactive,onMove,onError,preview=false,reviewOnl
   const initialOrientation=item.start_fen.split(" ")[1]==="b"?"black":"white";
   const solution=preview&&Array.isArray(item.solution)?item.solution:[];
   let solved=!!item.solved,busy=false,destroyed=false;
-  const canMove=()=>!!interactive&&!solved&&!busy&&!reviewOnly;
+  // Completed puzzle solutions are already stored in item.played. After Reset,
+  // allow a local replay without changing the server's solved status.
+  const completedMoves=solved&&!preview?[...(item.played||[])]:[];
+  let replayMode=false,replayCursor=0;
+  const canMove=()=>!!interactive&&!busy&&!reviewOnly &&
+    (replayMode?replayCursor<completedMoves.length:!solved);
   const board=Chessground(element,{
     fen:game.fen(),
     orientation:initialOrientation,
@@ -72,7 +77,7 @@ function create({element,item,interactive,onMove,onError,preview=false,reviewOnl
       fen:game.fen(),
       turnColor:game.turn()==="w"?"white":"black",
       check:game.isCheck(),
-      lastMove:lastMovePair(item.played),
+      lastMove:lastMovePair(replayMode?completedMoves.slice(0,replayCursor):item.played),
       movable:{
         free:false,
         color:active?(game.turn()==="w"?"white":"black"):undefined,
@@ -85,7 +90,7 @@ function create({element,item,interactive,onMove,onError,preview=false,reviewOnl
   }
 
   async function submitMove(from,to){
-    if(destroyed||busy||solved||!interactive||reviewOnly){sync();return;}
+    if(destroyed||busy||(!replayMode&&solved)||!interactive||reviewOnly){sync();return;}
     const choices=game.moves({verbose:true}).filter(m=>m.from===from&&m.to===to);
     if(!choices.length){sync();onError?.("This move is not legal.");return;}
     let chosen=choices[0];
@@ -106,6 +111,24 @@ function create({element,item,interactive,onMove,onError,preview=false,reviewOnl
       game.move({from:chosen.from,to:chosen.to,...(chosen.promotion?{promotion:chosen.promotion}:{})});
       applied=true;
       sync();
+      // A solved puzzle can be practiced again locally. Do not call the
+      // progress endpoint or alter the recorded completion / mistake counts.
+      if(replayMode){
+        const expected=completedMoves[replayCursor];
+        if(expected!==uci){
+          game.undo();applied=false;
+          onError?.("That move does not match the completed solution. Try again.");
+          sync();return;
+        }
+        replayCursor++;
+        const reply=completedMoves[replayCursor];
+        if(reply && replayCursor%2===1){
+          playUci(game,reply);
+          replayCursor++;
+          board.set({fen:game.fen(),lastMove:lastMovePair([reply])});
+        }
+        sync();return;
+      }
       // Moderators can rehearse puzzle solutions locally before publishing.
       // This branch never persists moves or exposes solutions to students.
       if(preview){
@@ -165,7 +188,10 @@ function create({element,item,interactive,onMove,onError,preview=false,reviewOnl
     if(destroyed||busy)return;
     game=new Chess(item.start_fen);
     if(preview){item.played=[];item.solved=false;solved=false;}
-    else for(const move of item.played||[])playUci(game,move);
+    else if(item.solved&&completedMoves.length){
+      replayMode=true;replayCursor=0;
+      // The stored item.played and item.solved remain untouched.
+    }else for(const move of item.played||[])playUci(game,move);
     sync();
   }
   function step(){
