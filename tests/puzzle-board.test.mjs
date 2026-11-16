@@ -174,12 +174,12 @@ test("Chessground preview steps a moderator through a solution without sending s
    onMove:()=>{posted++;},onError:()=>{}
  });
  board.step();
- assert.deepEqual(item.played,["e5d3"]);
+ assert.equal(Array.from(item.played).join(","),"e5d3");
  assert.equal(item.solved,true);
  assert.equal(posted,0);
  assert.equal(updates.at(-1).movable.color,undefined);
  board.reset();
- assert.deepEqual(item.played,[]);
+ assert.equal(item.played.length,0);
  assert.equal(item.solved,false);
  assert.equal(updates.at(-1).fen,item.start_fen);
  board.destroy();
