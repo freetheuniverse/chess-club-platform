@@ -1,7 +1,8 @@
 (() => {
-let liveBoard=null;
-function destroyBoard(){if(liveBoard){liveBoard.destroy();liveBoard=null;}}
-const THEME_OPTIONS=[["mix","Mixed tactics"],["fork","Forks"],["pin","Pins"],["skewer","Skewers"],["discoveredAttack","Discovered attacks"],["mateIn1","Mate in one"],["mateIn2","Mate in two"],["mateIn3","Mate in three"],["endgame","Endgames"],["opening","Openings"],["middlegame","Middlegames"],["hangingPiece","Hanging pieces"],["defensiveMove","Defensive moves"],["promotion","Promotion"],["sacrifice","Sacrifices"],["backRankMate","Back-rank mate"]];
+const liveBoards=new Map();
+function destroyBoard(){for(const board of liveBoards.values())board.destroy();liveBoards.clear();}
+const THEME_GROUPS=[["Checkmates",[["mateIn1","Mate in one move"],["mateIn2","Mate in two moves"],["mateIn3","Mate in three moves"],["mateIn4","Mate in four moves"],["mateIn5","Mate in five moves"],["backRankMate","Back-rank mate"],["smotheredMate","Smothered mate"],["anastasiaMate","Anastasia’s mate"],["arabianMate","Arabian mate"],["bodenMate","Boden’s mate"],["doubleBishopMate","Double bishop mate"],["dovetailMate","Dovetail mate"],["hookMate","Hook mate"]]],["Openings",[["opening","Opening"],["kingsideAttack","Kingside attack"],["queensideAttack","Queenside attack"]]],["Endgames",[["endgame","Endgame"],["promotion","Promotion"],["zugzwang","Zugzwang"],["pawnEndgame","Pawn endgame"],["rookEndgame","Rook endgame"],["queenEndgame","Queen endgame"],["queenRookEndgame","Queen and rook endgame"],["advancedPawn","Advanced pawn"],["bishopEndgame","Bishop endgame"],["knightEndgame","Knight endgame"],["attackingF2F7","Attacking f2/f7"]]],["Tactics",[["pin","Pin"],["fork","Fork (double attack)"],["skewer","Skewer"],["discoveredAttack","Discovered attack"],["doubleCheck","Double check"],["attraction","Attraction"],["xRayAttack","X-ray attack"],["defensiveMove","Defensive move"],["deflection","Deflection"],["hangingPiece","Hanging piece"],["sacrifice","Sacrifice"],["interference","Interference"],["trappedPiece","Trapped piece"],["capturingDefender","Capturing defender"],["clearance","Clearance"],["exposedKing","Exposed king"],["quietMove","Quiet move"]]],["Special moves",[["enPassant","En passant"],["underPromotion","Underpromotion"],["castling","Castling"]]],["Puzzle length",[["oneMove","One move"],["short","Short"],["long","Long"],["veryLong","Very long"]]],["Goals",[["crushing","Crushing"],["advantage","Advantage"],["equality","Equality"]]],["Other",[["master","Master games"],["mix","Mixed tactics"],["middlegame","Middlegames"]]]];
+
 const DIFFICULTIES=[["easiest","Very easy"],["easier","Easy"],["normal","Normal"],["harder","Hard"],["hardest","Very hard"]];
 const escape=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pretty=x=>x?.replace(/([A-Z])/g," $1")||"";
@@ -25,10 +26,29 @@ async function open(state,api,id){
  state.puzzleIndex=Math.max(0,state.assignmentData.items.findIndex(i=>!i.solved));
  state.puzzleFeedback="";state.puzzleSquare=null;
 }
-function boardHtml(item,state){
- // The board library owns squares, pointer dragging, click moves, highlights and animations.
- // Keep the host stable until a puzzle selection or navigation changes the page.
- return '<div class="chess-board-host" id="puzzle-board-host" role="group" aria-label="Interactive chess puzzle board"></div>';
+function boardHtml(item,state,index=0){
+ const id=index===0?"puzzle-board-host":"puzzle-board-host-"+index;
+ return '<div class="chess-board-host" id="'+id+'" role="group" aria-label="Puzzle '+(index+1)+' interactive chessboard"></div>';
+}
+function topicOptions(selected){
+ return THEME_GROUPS.map(([group,topics])=>
+   '<optgroup label="'+escape(group)+'">'+topics.map(([key,label])=>
+      '<option value="'+escape(key)+'"'+(key===selected?' selected':'')+'>'+escape(label)+'</option>'
+   ).join("")+'</optgroup>'
+ ).join("");
+}
+function puzzleTool(name,label,action,disabled=false){
+ const shapes={
+   analyze:'<circle cx="11" cy="11" r="6"/><path d="m16 16 5 5M9 11h4M11 9v4"/>',
+   game:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/>',
+   change:'<path d="M4 7h15l-4-4M20 17H5l4 4M19 7l-4 4M5 17l4-4"/>',
+   remove:'<path d="M4 7h16M9 4h6M7 7l1 13h8l1-13M10 10v7M14 10v7"/>',
+   reset:'<path d="M3 11a8 8 0 1 0 2-5M3 4v5h5"/>',
+   next:'<path d="m6 4 11 8-11 8z"/>',
+   flip:'<path d="M4 8V4h4M20 16v4h-4M4 4c3-2 7-2 10 0M20 20c-3 2-7 2-10 0"/>'
+ };
+ return '<button type="button" class="puzzle-tool" title="'+escape(label)+'" aria-label="'+escape(label)+'" data-puzzle-action="'+escape(action)+'"'+(disabled?' disabled':'')+'>'+
+   '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shapes[name]+'</svg></button>';
 }
 
 function assignmentTypeIcon(kind){
