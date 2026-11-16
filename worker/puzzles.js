@@ -48,7 +48,8 @@ async function bankReady(db){
 async function getLichess(url,db){
  // Persist the cooldown across Worker isolates so new visitors do not immediately
  // retry a provider that is already replying 429.
- const blocked=await db.prepare("SELECT blocked_until FROM lichess_rate_state WHERE name='lichess'").first();
+ const useCooldown=await bankReady(db);
+ const blocked=useCooldown?await db.prepare("SELECT blocked_until FROM lichess_rate_state WHERE name='lichess'").first():null;
  const now=Math.floor(Date.now()/1000);
  if(blocked && blocked.blocked_until>now){
    const left=Math.max(1,blocked.blocked_until-now);
@@ -62,7 +63,7 @@ async function getLichess(url,db){
  });
  if(response.status===429){
    const seconds=Math.max(COOLDOWN_SECONDS,Math.min(300,Number.parseInt(response.headers.get("Retry-After")||"60",10)||60));
-   await db.prepare("INSERT INTO lichess_rate_state(name,blocked_until) VALUES('lichess',?) "+
+   if(useCooldown)await db.prepare("INSERT INTO lichess_rate_state(name,blocked_until) VALUES('lichess',?) "+
      "ON CONFLICT(name) DO UPDATE SET blocked_until=max(lichess_rate_state.blocked_until,excluded.blocked_until)")
      .bind(now+seconds).run();
    throw Object.assign(Error("Lichess is temporarily rate-limiting new puzzles. Try again in about "+seconds+" seconds, or choose a cached topic."),{
@@ -136,6 +137,7 @@ async function puzzlePreview(db,club,user,payload){
      if(prepared.length>=count)break;
    }
  }
+ const hadCache=prepared.length>0;
  let rateLimited=false,limitError=null;
  if(prepared.length<count){
    try{
@@ -190,7 +192,7 @@ async function puzzlePreview(db,club,user,payload){
     .bind(p.preview_id,p.lichess_id,club,user.id)
  ));
  return reply({
-   puzzles:drafts,cached:prepared.length>0,
+   puzzles:drafts,cached:hadCache,
    warning:rateLimited?"Showing available cached puzzles. Lichess is temporarily limiting new requests.":null
  });
 }
