@@ -298,8 +298,9 @@ function assignmentForm(state){
  '<div class="puzzle-member-section"><div class="spread"><h3>Assign to members</h3><span>'+btn("All","members-all","btn text")+" "+btn("Clear","members-none","btn text")+'</span></div>'+
  '<div class="puzzle-member-list">'+members.map(m=>'<label class="selectrow"><input class="puzzle-member" type="checkbox" value="'+escape(m.id)+'"'+(selected===null||selected.includes(m.id)?' checked':'')+'><span>'+escape(m.name)+'</span></label>').join("")+'</div></div>'+
  '<label class="puzzle-ids-field">Specific Lichess puzzle IDs (optional)<input class="field" name="puzzle_ids" value="'+escape(d.puzzle_ids)+'" placeholder="e.g. PSjmf, 0haqU"></label>'+
- '<p class="modal-hint">Use specific IDs to preview exact puzzles, or leave the field empty for a topic-based selection. You can preview up to 10 puzzles.</p>'+
- '<div id="puzzle-form-error" class="notice" role="alert" hidden></div>'+
+ '<p class="modal-hint">Use specific IDs to preview exact puzzles, or leave the field empty for a topic-based selection. Already cached puzzles can load without contacting Lichess.</p>'+
+ '<div id="puzzle-form-error" class="notice" role="alert"'+(d.error?'':' hidden')+'>'+escape(d.error||"")+'</div>'+
+ (d.warning?'<p class="puzzle-cache-warning" role="status">'+escape(d.warning)+'</p>':"")+
  '<div class="form-actions">'+btn("Cancel","cancel-assignment")+'<button type="submit" class="btn" id="puzzle-submit"'+(!d.items?.length?' disabled':'')+'>Assign '+(d.items?.length||0)+' puzzles</button></div>'+
  '</form></div></section>';
 }
@@ -517,6 +518,7 @@ function bind({state,render,api,post,action}){
          draft.count=draft.items.length;
          draft.puzzle_ids="";
          draft.error="";
+         draft.warning=response.warning||"";
          state.puzzleDraft=draft;
          render();
        }catch(e){
@@ -650,10 +652,11 @@ function bind({state,render,api,post,action}){
    const draft=capturePuzzleDraft(state);
    if(!draft.items?.length){error.textContent="Generate and review your puzzles before assigning.";error.hidden=false;return;}
    if(!draft.member_ids?.length){error.textContent="Select at least one member.";error.hidden=false;return;}
+   if(draft.items.some(x=>!x.preview_id)){error.textContent="Regenerate puzzle previews to prepare them for publishing.";error.hidden=false;return;}
    const payload={
      title:draft.title,theme:draft.theme,difficulty:draft.difficulty,
      count:draft.items.length,due_date:draft.due_date,
-     user_ids:draft.member_ids,puzzle_ids:draft.items.map(x=>x.lichess_id).join(",")
+     user_ids:draft.member_ids,preview_ids:draft.items.map(x=>x.preview_id)
    };
    submit.disabled=true;error.hidden=true;
    try{
