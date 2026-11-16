@@ -1,3 +1,4 @@
+import {fetchArchivePuzzles} from "./puzzle-archive.js";
 import { Chess } from "chess.js";
 
 const reply = (data, status=200) => new Response(JSON.stringify(data), {
@@ -138,7 +139,7 @@ async function puzzlePreview(db,club,user,payload){
    }
  }
  const hadCache=prepared.length>0;
- let rateLimited=false,limitError=null;
+ let rateLimited=false,limitError=null,archiveUsed=false;
  if(prepared.length<count){
    try{
      let raw=[];
@@ -176,8 +177,34 @@ async function puzzlePreview(db,club,user,payload){
        ).bind(p.lichess_id,theme,difficulty,p.rating,JSON.stringify(p.themes),p.start_fen,JSON.stringify(p.solution),p.game_id)));
      }
    }catch(e){
-     if(e.status===429){rateLimited=true;limitError=e;}
-     else if(!prepared.length)return fail("Could not load new puzzles: "+e.message,e.status||502);
+     limitError=e;
+     rateLimited=e.status===429;
+     // A different Lichess data distribution, not a request to its limited
+     // live puzzle endpoint. Never substitute random puzzles for explicit IDs.
+     if(!ids.length){
+       try{
+         const archive=await fetchArchivePuzzles({
+           theme,difficulty,count:count-prepared.length,exclude:[...used]
+         });
+         const fresh=[];
+         for(const p of archive.items){
+           if(used.has(p.lichess_id))continue;
+           used.add(p.lichess_id);
+           fresh.push(p);prepared.push(p);
+           if(prepared.length>=count)break;
+         }
+         if(fresh.length){
+           await db.batch(fresh.map(p=>db.prepare(
+             "INSERT OR IGNORE INTO puzzle_bank(lichess_id,source_theme,source_difficulty,rating,themes,start_fen,solution_json,game_id) VALUES(?,?,?,?,?,?,?,?)"
+           ).bind(p.lichess_id,theme,difficulty,p.rating,JSON.stringify(p.themes),p.start_fen,JSON.stringify(p.solution),p.game_id)));
+           archiveUsed=true;
+         }
+       }catch(archiveFailure){
+         console.warn("Public puzzle dataset fallback unavailable",String(archiveFailure?.message||archiveFailure));
+       }
+     }
+     if(!prepared.length && !rateLimited)
+       return fail("Could not load puzzles from either source. "+e.message,e.status||502);
    }
  }
  if(!prepared.length){
@@ -193,7 +220,9 @@ async function puzzlePreview(db,club,user,payload){
  ));
  return reply({
    puzzles:drafts,cached:hadCache,
-   warning:rateLimited?"Showing available cached puzzles. Lichess is temporarily limiting new requests.":null
+   warning:archiveUsed?
+     "Puzzle positions were retrieved from the public Lichess dataset because the live puzzle API was unavailable. Difficulty uses approximate rating bands.":
+     rateLimited?"Showing available cached puzzles. Lichess is temporarily limiting new requests.":null
  });
 }
 
