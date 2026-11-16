@@ -243,22 +243,62 @@ function listing(state){
    (state.showGeneralForm?generalForm(state):"");
 }
 
+function draftDefault(state){
+ return state.puzzleDraft||{
+   title:"",theme:"mateIn1",difficulty:"normal",count:6,due_date:"",
+   puzzle_ids:"",mode:"practice",member_ids:null,items:[]
+ };
+}
+function previewCard(p,i){
+ return '<article class="puzzle-grid-card preview-card" data-preview-index="'+i+'">'+
+   '<div class="puzzle-card-top"><span class="puzzle-card-number">Puzzle '+(i+1)+'</span>'+
+     '<span class="puzzle-card-rating">Rating '+Number(p.rating||0)+'</span></div>'+
+   '<div class="puzzle-toolbar" aria-label="Tools for puzzle '+(i+1)+'">'+
+     puzzleTool("analyze","Analyze Position","preview-analyze:"+i)+
+     puzzleTool("game","View Full Game","preview-game:"+i)+
+     puzzleTool("change","Change this puzzle","preview-change:"+i)+
+     puzzleTool("remove","Remove this puzzle","preview-remove:"+i)+
+     puzzleTool("reset","Reset board","preview-reset:"+i)+
+     puzzleTool("next","Play next move","preview-next:"+i)+
+   '</div>'+boardHtml(p,null,i)+
+   '<div class="puzzle-card-bottom"><span>'+(p.start_fen?.split(" ")[1]==="b"?"Black to move":"White to move")+'</span>'+
+     '<span class="puzzle-card-id">Lichess '+escape(p.lichess_id)+'</span></div>'+
+   '<div class="puzzle-card-feedback" id="preview-feedback-'+i+'" aria-live="polite"></div>'+
+ '</article>';
+}
 function assignmentForm(state){
- const members=state.data?.members||[];
- return '<section class="puzzle-form-layer" role="dialog" aria-label="New puzzle assignment" aria-modal="true"><div class="puzzle-form-panel">'+
- '<div class="panel-heading"><h2>Assign Lichess puzzles</h2>'+btn("Close","cancel-assignment")+'</div>'+
+ const members=state.data?.members||[],d=draftDefault(state),selected=d.member_ids;
+ const boards=(d.items||[]).map(previewCard).join("");
+ return '<section class="puzzle-form-layer puzzle-editor-layer" role="dialog" aria-label="New puzzle assignment" aria-modal="true">'+
+ '<div class="puzzle-form-panel puzzle-editor-panel">'+
+ '<div class="panel-heading puzzle-editor-heading"><div><h2>Create puzzle assignment</h2><p class="muted">Choose your puzzles and review the boards before assigning.</p></div>'+btn("Close","cancel-assignment")+'</div>'+
  '<form id="puzzle-create-form" class="panel-body form">'+
- '<label>Assignment title<input name="title" class="field" required minlength="3" maxlength="100" placeholder="e.g. Fork practice — Week 1"></label>'+
- '<div class="puzzle-form-grid"><label>Topic<select name="theme" class="field">'+options(THEME_OPTIONS,"mix")+'</select></label>'+
- '<label>Difficulty<select name="difficulty" class="field">'+options(DIFFICULTIES,"easier")+'</select></label>'+
- '<label>Number of puzzles<input class="field" name="count" type="number" min="1" max="10" value="5" required></label>'+
- '<label>Due date (optional)<input class="field" name="due_date" type="date"></label></div>'+
- '<div><div class="spread"><strong>Assign to members</strong><span>'+btn("All","members-all","btn text")+" "+btn("Clear","members-none","btn text")+'</span></div>'+
- '<div class="puzzle-member-list">'+members.map(m=>'<label class="selectrow"><input class="puzzle-member" type="checkbox" value="'+escape(m.id)+'" checked><span>'+escape(m.name)+'</span></label>').join("")+'</div></div>'+
- '<label>Lichess puzzle IDs (optional)<input class="field" name="puzzle_ids" placeholder="e.g. PSjmf, 0haqU"></label>'+
- '<p class="modal-hint">Leave IDs blank for randomly selected puzzles based on topic and difficulty. Specifying IDs uses exactly those puzzles.</p>'+
+ '<div class="puzzle-editor-field-row">'+
+ '<label class="puzzle-editor-title">Assignment title<input name="title" class="field" required minlength="3" maxlength="100" value="'+escape(d.title)+'" placeholder="e.g. Mate in one — Week 1"></label>'+
+ '<label>Due date (optional)<input name="due_date" class="field" type="date" value="'+escape(d.due_date)+'"></label></div>'+
+ '<div class="puzzle-editor-field-row puzzle-editor-controls">'+
+ '<label>Topic<select name="theme" class="field">'+topicOptions(d.theme)+'</select></label>'+
+ '<label>Difficulty<select name="difficulty" class="field">'+options(DIFFICULTIES,d.difficulty)+'</select></label>'+
+ '<label>Preview mode<select name="mode" class="field">'+
+ '<option value="practice"'+(d.mode==="practice"?' selected':'')+'>Practice</option>'+
+ '<option value="review"'+(d.mode==="review"?' selected':'')+'>Review moves</option>'+
+ '</select></label>'+
+ '<label>Puzzles<input name="count" class="field" type="number" min="1" max="10" value="'+Number(d.count||6)+'"></label>'+
+ '</div>'+
+ '<div class="puzzle-preview-top"><div><h3>Puzzle selection</h3><p class="muted">Inspect positions, replace unsuitable puzzles, or step through a solution before publishing.</p></div>'+
+ '<div class="puzzle-editor-actions">'+
+   btn("Generate puzzles","generate-preview","btn ghost small")+
+   ((d.items||[]).length<10?btn("+ Add puzzle","preview-add","btn ghost small"):"")+
+ '</div></div>'+
+ '<div class="puzzle-preview-grid" id="puzzle-preview-grid">'+
+ (boards||'<div class="puzzle-preview-placeholder">No puzzles selected. Choose a topic and select <strong>Generate puzzles</strong> to preview them.</div>')+
+ '</div>'+
+ '<div class="puzzle-member-section"><div class="spread"><h3>Assign to members</h3><span>'+btn("All","members-all","btn text")+" "+btn("Clear","members-none","btn text")+'</span></div>'+
+ '<div class="puzzle-member-list">'+members.map(m=>'<label class="selectrow"><input class="puzzle-member" type="checkbox" value="'+escape(m.id)+'"'+(selected===null||selected.includes(m.id)?' checked':'')+'><span>'+escape(m.name)+'</span></label>').join("")+'</div></div>'+
+ '<label class="puzzle-ids-field">Specific Lichess puzzle IDs (optional)<input class="field" name="puzzle_ids" value="'+escape(d.puzzle_ids)+'" placeholder="e.g. PSjmf, 0haqU"></label>'+
+ '<p class="modal-hint">Use specific IDs to preview exact puzzles, or leave the field empty for a topic-based selection. You can preview up to 10 puzzles.</p>'+
  '<div id="puzzle-form-error" class="notice" role="alert" hidden></div>'+
- '<div class="form-actions">'+btn("Cancel","cancel-assignment")+'<button type="submit" class="btn" id="puzzle-submit">Create assignment</button></div>'+
+ '<div class="form-actions">'+btn("Cancel","cancel-assignment")+'<button type="submit" class="btn" id="puzzle-submit"'+(!d.items?.length?' disabled':'')+'>Assign '+(d.items?.length||0)+' puzzles</button></div>'+
  '</form></div></section>';
 }
 function generalForm(state){
