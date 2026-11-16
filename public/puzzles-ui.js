@@ -192,7 +192,9 @@ function gradebookView(state){
      controls+
      (!data?'<div class="classwork-empty">Loading gradebook…</div>':
        (!data.general_ready?'<p class="classwork-setup">Study and written assignments require migration 0005. Puzzle progress is available.</p>':"")+table)+
-     '</div>';
+     '</div>'+
+     (state.showAssignmentForm?assignmentForm(state):"")+
+     (state.showGeneralForm?generalForm(state):"");
 }
 function listing(state){
  const entries=combinedAssignments(state);
@@ -691,27 +693,65 @@ function bind({state,render,api,post,action}){
    finally{if(btnSubmit)btnSubmit.disabled=false;}
  };
 
- const host=document.getElementById("puzzle-board-host");
- if(host && state.assignmentData?.canSolve){
-   const item=state.assignmentData.items[state.puzzleIndex];
-   try{
-     if(!window.PuzzleBoardFactory)throw Error("Chessboard component failed to load. Please refresh.");
-     liveBoard=window.PuzzleBoardFactory.create({
-       element:host,item,interactive:!item.solved,
-       onMove:async uci=>{
-         const result=await post("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/items/"+item.id,{move:uci});
-         item.played=result.played;
-         item.solved=result.solved;
-         item.mistakes=result.mistakes;
-         state.puzzleFeedback=result.correct?(result.solved?"Correct — puzzle solved.":"Correct. Find the next move."):"Not the best move. Try again.";
-         updatePuzzleFeedback(state,item);
-         return result;
-       },
-       onError:message=>{state.puzzleFeedback=message;updatePuzzleFeedback(state,item);}
-     });
-   }catch(err){
-     host.textContent="Could not load chessboard: "+(err?.message||err);
-   }
+ const previewMode=document.querySelector('#puzzle-create-form select[name="mode"]');
+ if(previewMode)previewMode.onchange=()=>{
+   const draft=capturePuzzleDraft(state);
+   draft.items.forEach(p=>{p.played=[];p.solved=false;p.mistakes=0;});
+   render();
+ };
+ if(state.showAssignmentForm && state.puzzleDraft?.items?.length){
+   state.puzzleDraft.items.forEach((item,index)=>{
+     const host=document.getElementById(index===0?"puzzle-board-host":"puzzle-board-host-"+index);
+     if(!host)return;
+     try{
+       if(!window.PuzzleBoardFactory)throw Error("Chessboard component failed to load.");
+       const board=window.PuzzleBoardFactory.create({
+         element:host,item,interactive:state.puzzleDraft.mode!=="review",
+         preview:true,reviewOnly:state.puzzleDraft.mode==="review",
+         onMove:result=>{
+           const feedback=document.getElementById("preview-feedback-"+index);
+           if(feedback)feedback.textContent=result.solved?"Solution completed.":"Correct move.";
+         },
+         onError:message=>{
+           const feedback=document.getElementById("preview-feedback-"+index);
+           if(feedback)feedback.textContent=message;
+         }
+       });
+       liveBoards.set("preview:"+index,board);
+     }catch(err){host.textContent="Could not load preview board: "+(err?.message||err);}
+   });
+ }
+ if(state.activeAssignment && state.assignmentData?.items){
+   state.assignmentData.items.forEach((item,index)=>{
+     const host=document.getElementById(index===0?"puzzle-board-host":"puzzle-board-host-"+index);
+     if(!host)return;
+     try{
+       if(!window.PuzzleBoardFactory)throw Error("Chessboard component failed to load. Please refresh.");
+       const board=window.PuzzleBoardFactory.create({
+         element:host,item,interactive:!!state.assignmentData.canSolve&&!item.solved,
+         onMove:async uci=>{
+           const result=await post("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/items/"+item.id,{move:uci});
+           item.played=result.played;
+           item.solved=result.solved;
+           item.mistakes=result.mistakes;
+           state.puzzleFeedback=result.correct?(result.solved?"Correct — puzzle solved.":"Correct. Find the next move."):"Not the best move. Try again.";
+           updatePuzzleFeedback(state,item,index);
+           if(item.solved){
+             for(const which of ["student-analyze","student-game"]){
+               const option=document.querySelector('[data-puzzle-action="'+which+':'+index+'"]');
+               if(option)option.disabled=false;
+             }
+           }
+           return result;
+         },
+         onError:message=>{
+           const feedback=document.getElementById("puzzle-feedback-"+index);
+           if(feedback)feedback.textContent=message;
+         }
+       });
+       liveBoards.set("student:"+index,board);
+     }catch(err){host.textContent="Could not load chessboard: "+(err?.message||err);}
+   });
  }
 
 }
