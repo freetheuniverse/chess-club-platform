@@ -430,6 +430,31 @@ function updatePuzzleFeedback(state,item,index){
  }
 }
 
+function capturePuzzleDraft(state){
+ const form=document.getElementById("puzzle-create-form");
+ const current=draftDefault(state);
+ if(!form)return current;
+ const data=Object.fromEntries(new FormData(form));
+ const members=[...document.querySelectorAll(".puzzle-member:checked")].map(x=>x.value);
+ state.puzzleDraft={
+   ...current,
+   title:String(data.title||""),theme:String(data.theme||"mix"),
+   difficulty:String(data.difficulty||"normal"),
+   count:Math.min(10,Math.max(1,Number(data.count)||6)),
+   due_date:String(data.due_date||""),puzzle_ids:String(data.puzzle_ids||""),
+   mode:String(data.mode||"practice"),member_ids:members
+ };
+ return state.puzzleDraft;
+}
+function analysisUrl(fen){
+ const normalized=String(fen||"").trim();
+ if(!/^[prnbqkPRNBQK1-8/]+ [wb] [KQkq-]+ [a-h1-8-]+ \d+ \d+$/.test(normalized))return null;
+ return "https://lichess.org/analysis/standard/"+normalized.replace(/ /g,"_");
+}
+function openExternal(url){
+ if(!url || !/^https:\/\/lichess\.org\//.test(url))return;
+ window.open(url,"_blank","noopener,noreferrer");
+}
 function bind({state,render,api,post,action}){
  document.querySelectorAll("[data-puzzle-action]").forEach(el=>el.onclick=()=>{
    const [cmd,...parts]=el.dataset.puzzleAction.split(":");
@@ -446,7 +471,8 @@ function bind({state,render,api,post,action}){
    if(cmd==="create-menu"){state.showCreateMenu=!state.showCreateMenu;render();}
    if(cmd==="filter"){state.assignmentFilter=val;render();}
    if(cmd==="new-assignment"){
-     state.showAssignmentForm=true;state.showCreateMenu=false;state.showGeneralForm=null;render();
+     state.showAssignmentForm=true;state.puzzleDraft=null;
+     state.showCreateMenu=false;state.showGeneralForm=null;render();
    }
    if(cmd==="new-general"){
      if(!state.generalReady){
@@ -456,10 +482,97 @@ function bind({state,render,api,post,action}){
      state.showGeneralForm=val;state.showAssignmentForm=false;state.showCreateMenu=false;render();
    }
    if(cmd==="cancel-general"){state.showGeneralForm=null;render();}
-   if(cmd==="cancel-assignment"){state.showAssignmentForm=false;render();}
+   if(cmd==="cancel-assignment"){state.showAssignmentForm=false;state.puzzleDraft=null;render();}
    if(cmd==="general-all"||cmd==="general-none")document.querySelectorAll(".general-member").forEach(x=>x.checked=cmd==="general-all");
    if(cmd==="members-all"||cmd==="members-none")document.querySelectorAll(".puzzle-member").forEach(x=>x.checked=cmd==="members-all");
-   if(cmd==="flip")liveBoard?.flip();
+   if(cmd==="flip")liveBoards.get("student:"+state.puzzleIndex)?.flip();
+   if(cmd==="generate-preview"||cmd==="preview-change"||cmd==="preview-add"){
+     const draft=capturePuzzleDraft(state);
+     const index=Number(val);
+     if((cmd==="preview-change"||cmd==="preview-add") && !draft.items?.length)return;
+     const existing=(draft.items||[]).map(x=>x.lichess_id);
+     if(cmd==="preview-add"&&existing.length>=10)return;
+     const request={
+       theme:draft.theme,difficulty:draft.difficulty,
+       count:cmd==="generate-preview"?draft.count:cmd==="preview-change"?1:1,
+       puzzle_ids:cmd==="generate-preview"?draft.puzzle_ids:"",
+       exclude_ids:cmd==="generate-preview"?[]:existing
+     };
+     const error=document.getElementById("puzzle-form-error");
+     if(error){error.hidden=true;error.textContent="";}
+     const create=document.getElementById("puzzle-submit");
+     if(create)create.disabled=true;
+     void (async()=>{
+       try{
+         const response=await post("clubs/"+state.club+"/puzzles/preview",request);
+         const incoming=(response.puzzles||[]).map(item=>({...item,played:[],solved:false,mistakes:0}));
+         if(!incoming.length)throw Error("Lichess did not return any suitable puzzles.");
+         if(cmd==="generate-preview")draft.items=incoming;
+         else if(cmd==="preview-change"){
+           if(!Number.isInteger(index)||index<0||index>=draft.items.length)return;
+           draft.items[index]=incoming[0];
+         }else draft.items.push(incoming[0]);
+         draft.count=draft.items.length;
+         draft.puzzle_ids="";
+         draft.error="";
+         state.puzzleDraft=draft;
+         render();
+       }catch(e){
+         draft.error=e.message||"Could not preview puzzles.";
+         state.puzzleDraft=draft;
+         const msg=document.getElementById("puzzle-form-error");
+         if(msg){msg.textContent=draft.error;msg.hidden=false;}
+         if(create)create.disabled=!(draft.items||[]).length;
+       }
+     })();
+   }
+   if(cmd==="preview-remove"){
+     const draft=capturePuzzleDraft(state),index=Number(val);
+     if(Number.isInteger(index)&&index>=0&&index<draft.items.length){
+       draft.items.splice(index,1);draft.count=Math.max(1,draft.items.length);
+       render();
+     }
+   }
+   if(cmd==="preview-reset"||cmd==="preview-next"||cmd==="preview-analyze"||cmd==="preview-game"){
+     const index=Number(val),draft=state.puzzleDraft;
+     const item=draft?.items?.[index];
+     if(!item)return;
+     const board=liveBoards.get("preview:"+index);
+     if(cmd==="preview-reset")board?.reset?.();
+     if(cmd==="preview-next")board?.step?.();
+     if(cmd==="preview-analyze")openExternal(analysisUrl(item.start_fen));
+     if(cmd==="preview-game"){
+       if(item.game_id)openExternal("https://lichess.org/"+item.game_id);
+       else{
+         const msg=document.getElementById("puzzle-form-error");
+         if(msg){msg.textContent="The original Lichess game link is not available for this puzzle.";msg.hidden=false;}
+       }
+     }
+     const feedback=document.getElementById("preview-feedback-"+index);
+     if(feedback&&(cmd==="preview-reset"||cmd==="preview-next"))
+       feedback.textContent=cmd==="preview-reset"?"Position reset.":item.solved?"Solution completed.":"Move played.";
+   }
+   if(cmd==="student-reset"||cmd==="student-flip"||cmd==="student-analyze"||cmd==="student-game"){
+     const index=Number(val),item=state.assignmentData?.items?.[index];
+     if(!item)return;
+     const board=liveBoards.get("student:"+index);
+     if(cmd==="student-reset")board?.reset?.();
+     if(cmd==="student-flip")board?.flip?.();
+     if(cmd==="student-analyze"&&(item.solved||state.data?.role==="moderator"))
+       openExternal(analysisUrl(item.start_fen));
+     if(cmd==="student-game"&&(item.solved||state.data?.role==="moderator")){
+       void (async()=>{
+         try{
+           const result=await api("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/source/"+item.id);
+           openExternal(result.game_url);
+         }catch(e){
+           const feedback=document.getElementById("puzzle-feedback-"+index);
+           if(feedback)feedback.textContent=e.message;
+         }
+       })();
+     }
+   }
+
    if(cmd==="back"){
      action(async()=>{
        state.activeAssignment=null;state.assignmentData=null;
@@ -525,13 +638,18 @@ function bind({state,render,api,post,action}){
  if(form)form.onsubmit=async e=>{
    e.preventDefault();
    const submit=document.getElementById("puzzle-submit"), error=document.getElementById("puzzle-form-error");
-   const payload=Object.fromEntries(new FormData(form));
-   payload.count=Number(payload.count);payload.user_ids=[...document.querySelectorAll(".puzzle-member:checked")].map(x=>x.value);
-   if(!payload.user_ids.length){error.textContent="Select at least one member.";error.hidden=false;return;}
+   const draft=capturePuzzleDraft(state);
+   if(!draft.items?.length){error.textContent="Generate and review your puzzles before assigning.";error.hidden=false;return;}
+   if(!draft.member_ids?.length){error.textContent="Select at least one member.";error.hidden=false;return;}
+   const payload={
+     title:draft.title,theme:draft.theme,difficulty:draft.difficulty,
+     count:draft.items.length,due_date:draft.due_date,
+     user_ids:draft.member_ids,puzzle_ids:draft.items.map(x=>x.lichess_id).join(",")
+   };
    submit.disabled=true;error.hidden=true;
    try{
      const created=await post("clubs/"+state.club+"/puzzles/assignments",payload);
-     state.showAssignmentForm=false;
+     state.showAssignmentForm=false;state.puzzleDraft=null;
      await list(state,api);await open(state,api,created.id);
      render();
    }catch(e){error.textContent=e.message;error.hidden=false;}finally{submit.disabled=false;}
