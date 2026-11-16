@@ -32,12 +32,14 @@ function lastMovePair(moves){
   return [move.slice(0,2),move.slice(2,4)];
 }
 
-function create({element,item,interactive,onMove,onError}){
+function create({element,item,interactive,onMove,onError,preview=false,reviewOnly=false}){
   if(!element)throw Error("Puzzle board element is missing.");
   let game=new Chess(item.start_fen);
   for(const uci of item.played||[])playUci(game,uci);
   const initialOrientation=item.start_fen.split(" ")[1]==="b"?"black":"white";
+  const solution=preview&&Array.isArray(item.solution)?item.solution:[];
   let solved=!!item.solved,busy=false,destroyed=false;
+  const canMove=()=>!!interactive&&!solved&&!busy&&!reviewOnly;
   const board=Chessground(element,{
     fen:game.fen(),
     orientation:initialOrientation,
@@ -55,8 +57,8 @@ function create({element,item,interactive,onMove,onError}){
     drawable:{enabled:true,visible:true},
     movable:{
       free:false,
-      color:interactive&&!solved?(game.turn()==="w"?"white":"black"):undefined,
-      dests:interactive&&!solved?legalDestinations(game):new Map(),
+      color:canMove()?(game.turn()==="w"?"white":"black"):undefined,
+      dests:canMove()?legalDestinations(game):new Map(),
       showDests:true,
       rookCastle:false,
       events:{after:(from,to)=>{void submitMove(from,to);}}
@@ -65,7 +67,7 @@ function create({element,item,interactive,onMove,onError}){
 
   function sync(){
     if(destroyed)return;
-    const active=!!interactive&&!solved&&!busy;
+    const active=canMove();
     board.set({
       fen:game.fen(),
       turnColor:game.turn()==="w"?"white":"black",
@@ -83,7 +85,7 @@ function create({element,item,interactive,onMove,onError}){
   }
 
   async function submitMove(from,to){
-    if(destroyed||busy||solved||!interactive){sync();return;}
+    if(destroyed||busy||solved||!interactive||reviewOnly){sync();return;}
     const choices=game.moves({verbose:true}).filter(m=>m.from===from&&m.to===to);
     if(!choices.length){sync();onError?.("This move is not legal.");return;}
     let chosen=choices[0];
@@ -104,6 +106,24 @@ function create({element,item,interactive,onMove,onError}){
       game.move({from:chosen.from,to:chosen.to,...(chosen.promotion?{promotion:chosen.promotion}:{})});
       applied=true;
       sync();
+      // Moderators can rehearse puzzle solutions locally before publishing.
+      // This branch never persists moves or exposes solutions to students.
+      if(preview){
+        if(solution[oldCount]!==uci){
+          game.undo();applied=false;onError?.("That is not the puzzle solution. Try another move.");sync();return;
+        }
+        item.played=[...(item.played||[]),uci];
+        const opponent=solution[item.played.length];
+        if(opponent && item.played.length%2===1){
+          playUci(game,opponent);
+          item.played.push(opponent);
+          board.set({fen:game.fen(),lastMove:lastMovePair([opponent])});
+        }
+        solved=item.played.length>=solution.length;
+        item.solved=solved;
+        onMove?.({correct:true,solved,played:item.played});
+        sync();return;
+      }
       const result=await onMove(uci);
       if(destroyed)return;
       if(!result||!Array.isArray(result.played))throw Error("Unexpected puzzle response");
@@ -141,8 +161,28 @@ function create({element,item,interactive,onMove,onError}){
       if(!destroyed){busy=false;sync();}
     }
   }
+  function reset(){
+    if(destroyed||busy)return;
+    game=new Chess(item.start_fen);
+    if(preview){item.played=[];item.solved=false;solved=false;}
+    else for(const move of item.played||[])playUci(game,move);
+    sync();
+  }
+  function step(){
+    if(!preview||destroyed||busy||!solution.length)return;
+    const next=solution[(item.played||[]).length];
+    if(!next)return;
+    try{
+      playUci(game,next);
+      item.played=[...(item.played||[]),next];
+      solved=item.played.length>=solution.length;
+      item.solved=solved;
+      sync();
+    }catch(e){onError?.("Could not replay solution move.");}
+  }
   return {
     flip(){if(!destroyed)board.toggleOrientation();},
+    reset,step,
     destroy(){if(!destroyed){destroyed=true;board.destroy();}}
   };
 }
