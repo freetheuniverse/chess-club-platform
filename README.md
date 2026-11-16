@@ -194,6 +194,14 @@ npm run db:migrate:cloud
 
 Migration `0006_puzzle_preview_cache.sql` creates a shared cache of public Lichess positions, an owner-scoped preview selection table, and a provider cooldown record. It seeds previously assigned puzzles so some topic selections can work without a new upstream request. Existing clubs, assignments and students' progress are unchanged. Cloudflare's website deployment **does not** apply D1 migrations automatically.
 
+### Public puzzle dataset fallback
+
+The application does not rely solely on the limited Lichess live puzzle API. If a topic has no cached positions and Lichess responds with HTTP 429 (or another temporary error), the Worker attempts to retrieve real, CC0-licensed Lichess puzzle records through the public `Lichess/chess-puzzles` dataset on Hugging Face. It independently validates the opening FEN, applies the original opponent setup move, verifies every solution move with chess.js, and saves selected positions into the existing D1 puzzle bank. This secondary source uses **approximate absolute puzzle-rating bands** for difficulty rather than Lichess's personalized difficulty calculation.
+
+A small, attributed, bundled set of genuine Lichess puzzle records is included for situations where both external providers are unavailable. Specialized themes may have fewer than the requested number of cached or bundled puzzles; the editor explicitly says how many are available instead of inventing extra positions. The fallback does not replace specific manually requested Lichess puzzle IDs. Publishing uses existing authenticated preview tokens, so it never fetches a second copy of those puzzles. Board generation has a busy state to prevent repeated clicks while retrieval runs.
+
+**This fallback requires no additional migration beyond 0006.** The built-in starter set is limited; a broader offline puzzle library can be imported separately from the official CC0 database if necessary.
+
 Lichess officially recommends **one request at a time** and waiting at least one minute after a 429 response. The Worker now observes a shared 60-second (or longer when Lichess requests it) cooldown, reuses cached puzzles when possible, and never re-fetches selected puzzles during publishing. New topics not yet cached can still be temporarily unavailable during a provider cooldown; the app communicates this limitation rather than inventing positions. The updated per-board toolbars use visible action labels as well as icons.
 
 
