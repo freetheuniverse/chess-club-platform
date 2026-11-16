@@ -214,3 +214,52 @@ test("Gradebook data is requested only for moderators choosing Gradebook",async(
  assert.equal(called.length,2);
  assert.ok(!called.some(p=>p.endsWith("/gradebook")));
 });
+
+test("Puzzle assignment creator previews a grid with all six contextual board tools",()=>{
+ const {page,state}=renderFixture();
+ state.showAssignmentForm=true;
+ state.puzzleDraft={
+   title:"Mate in One Move",theme:"mateIn1",difficulty:"normal",count:2,
+   due_date:"",puzzle_ids:"",mode:"practice",member_ids:["u1"],
+   items:[
+     {id:"ABC12",lichess_id:"ABC12",rating:1200,themes:["mateIn1"],start_fen:"4k3/8/8/4n3/8/8/8/4K3 b - - 0 1",solution:["e5d3"],game_id:"aB12cD34"},
+     {id:"ABC13",lichess_id:"ABC13",rating:1250,themes:["mateIn1"],start_fen:"4k3/8/8/4n3/8/8/8/4K3 b - - 0 1",solution:["e5d3"],game_id:"aB12cD35"}
+   ]
+ };
+ const html=page(state);
+ assert.match(html,/Create puzzle assignment/);
+ assert.match(html,/puzzle-preview-grid/);
+ assert.match(html,/puzzle-board-host/);
+ assert.match(html,/puzzle-board-host-1/);
+ assert.match(html,/optgroup label="Checkmates"/);
+ assert.match(html,/optgroup label="Openings"/);
+ assert.match(html,/Sicilian Defense/);
+ assert.match(html,/Generate puzzles/);
+ for(const action of ["preview-analyze:0","preview-game:0","preview-change:0","preview-remove:0","preview-reset:0","preview-next:0"])
+   assert.ok(html.includes('data-puzzle-action="'+action+'"'),"Missing creator action "+action);
+ assert.match(html,/Assign 2 puzzles/);
+});
+
+test("Student puzzle assignments show an entire puzzle grid instead of a left-hand navigation list",()=>{
+ const {page,state}=renderFixture();
+ state.data.role="student";
+ state.activeAssignment="assignment-1";
+ state.assignmentData={
+   assignment:{id:"assignment-1",title:"Mate practice",theme:"mateIn1",due_date:null},
+   canSolve:true,
+   items:[1,2,3].map((n)=>({
+     id:"item-"+n,lichess_id:"AB12"+n,rating:1400,played:[],solved:n===1,mistakes:0,
+     themes:["mateIn1"],start_fen:"4k3/8/8/4n3/8/8/8/4K3 b - - 0 1"
+   }))
+ };
+ const html=page(state);
+ assert.match(html,/class="puzzle-board-grid"/);
+ assert.match(html,/puzzle-board-host-2/);
+ assert.match(html,/puzzle-grid-card student-card/);
+ assert.match(html,/1 of 3 solved/);
+ assert.doesNotMatch(html,/Puzzle list|class="puzzle-items"/);
+ assert.match(html,/data-puzzle-action="student-reset:0"/);
+ assert.match(html,/data-puzzle-action="student-flip:0"/);
+ assert.match(html,/data-puzzle-action="student-analyze:1" disabled/);
+ assert.doesNotMatch(html,/preview-change:0|preview-remove:0|preview-next:0/);
+});
