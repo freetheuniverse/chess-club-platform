@@ -372,31 +372,40 @@ function generalDetail(state){
 function detail(state){
  const d=state.assignmentData;
  if(!d)return '<div class="panel"><div class="empty">Loading assignment…</div></div>';
- const items=d.items||[],item=items[state.puzzleIndex]||items[0];
+ const items=d.items||[];
  const count=items.filter(p=>p.solved).length;
- const left='<section class="panel"><div class="panel-heading"><h2>Puzzle list</h2><span id="puzzle-solved-counter" class="muted">'+count+" of "+items.length+' solved</span></div>'+
- '<div class="puzzle-items">'+items.map((p,i)=>'<button type="button" class="puzzle-item '+(state.puzzleIndex===i?"current":"")+'" data-puzzle-action="select:'+i+'">'+
- '<span>Question '+(i+1)+'</span><span class="muted" data-puzzle-progress="'+i+'">'+p.rating+' · '+(p.solved?"Solved":p.mistakes?"In progress":"Not started")+'</span></button>').join("")+'</div>'+
- '<div class="panel-body"><p class="panel-note">Source: Lichess puzzles. Moves are checked by the club website.</p></div></section>';
- const board=item?'<section class="panel"><div class="panel-heading"><div><h2>Puzzle '+(state.puzzleIndex+1)+'</h2><p class="muted">'+escape(item.themes?.slice(0,3).map(pretty).join(" · "))+' · rating '+item.rating+'</p></div>'+
- '<span id="puzzle-state-chip" class="pill '+(item.solved?"active":"")+'">'+(item.solved?"Solved":"In progress")+'</span></div><div class="puzzle-solving">'+
- boardHtml(item,state)+'<div class="puzzle-instructions"><strong>'+(item.solved?"Completed":"Find the best move")+'</strong>'+
- '<p class="muted">'+(item.solved?"Puzzle completed. Select another question to continue.":"Drag a piece or click two squares. Legal destinations are highlighted, and the opponent’s reply is animated.")+'</p>'+
- '<div id="puzzle-feedback" class="puzzle-feedback" role="status">'+escape(state.puzzleFeedback||"")+'</div>'+
- '<p class="muted" id="puzzle-mistake-count">Mistakes: '+item.mistakes+'</p>'+
- '<div class="row" style="margin-top:12px">'+btn("Flip board","flip","btn ghost small")+(state.puzzleIndex>0?btn("Previous","select:"+(state.puzzleIndex-1)):"")+
- (state.puzzleIndex<items.length-1?btn("Next puzzle","select:"+(state.puzzleIndex+1),"btn"):"")+'</div>'+
- '</div></div></section>':"";
- const report=Array.isArray(d.summary)?'<section class="panel"><div class="panel-heading"><h2>Member progress</h2><span class="muted">'+d.summary.length+' members</span></div>'+
+ const canReview=state.data?.role==="moderator";
+ const boards=items.map((item,index)=>{
+   const done=!!item.solved;
+   const toolbar='<div class="puzzle-toolbar" aria-label="Puzzle '+(index+1)+' controls">'+
+     puzzleTool("analyze","Analyze Position","student-analyze:"+index,!done&&!canReview)+
+     puzzleTool("game","View Full Game","student-game:"+index,!done&&!canReview)+
+     puzzleTool("reset","Reset board","student-reset:"+index)+
+     puzzleTool("flip","Flip board","student-flip:"+index)+
+   '</div>';
+   return '<article class="puzzle-grid-card student-card" data-puzzle-index="'+index+'">'+
+     '<div class="puzzle-card-top"><strong>Puzzle '+(index+1)+'</strong>'+
+       '<span class="puzzle-card-state '+(done?'solved':'')+'" id="puzzle-state-chip-'+index+'">'+
+       (done?'Solved':item.mistakes?'In progress':'Not started')+'</span></div>'+
+     toolbar+
+     boardHtml(item,state,index)+
+     '<div class="puzzle-card-bottom">'+
+       '<span>'+(item.start_fen?.split(" ")[1]==="b"?"Black to move":"White to move")+'</span>'+
+       '<span data-puzzle-progress="'+index+'">Rating '+Number(item.rating||0)+'</span></div>'+
+     '<div class="puzzle-card-feedback" id="puzzle-feedback-'+index+'" role="status" aria-live="polite"></div>'+
+     '<div class="puzzle-card-mistakes" id="puzzle-mistake-count-'+index+'">Mistakes: '+(item.mistakes||0)+'</div>'+
+   '</article>';
+ }).join("");
+ const report=Array.isArray(d.summary)?'<section class="panel puzzle-member-progress"><div class="panel-heading"><h2>Member progress</h2><span class="muted">'+d.summary.length+' members</span></div>'+
  '<div class="tablewrap"><table><thead><tr><th>Member</th><th class="num">Solved</th><th class="num">Mistakes</th></tr></thead><tbody>'+
- d.summary.map(s=>'<tr><td>'+escape(s.name)+'</td><td class="num">'+s.solved+" / "+items.length+'</td><td class="num">'+s.mistakes+'</td></tr>').join("")+
+ d.summary.map(m=>'<tr><td>'+escape(m.name)+'</td><td class="num">'+m.solved+" / "+items.length+'</td><td class="num">'+m.mistakes+'</td></tr>').join("")+
  '</tbody></table></div></section>':"";
- return '<a class="back interactive" data-puzzle-action="back">← Assignments</a>'+
- '<div class="workspace-title"><div class="eyebrow">Puzzle assignment</div><h1>'+escape(d.assignment.title)+'</h1>'+
+ return '<button type="button" class="back interactive" data-puzzle-action="back">← Assignments</button>'+
+ '<div class="top puzzle-student-heading"><div><div class="eyebrow">Puzzle assignment</div><h1>'+escape(d.assignment.title)+'</h1>'+
  '<p class="muted">'+escape(pretty(d.assignment.theme))+' · '+fmt(d.assignment.due_date)+' · '+items.length+' puzzles</p></div>'+
- '<div class="tournament-workspace"><aside>'+left+'</aside><div class="workspace-main">'+
- (d.canSolve?board:'<section class="panel"><div class="panel-body"><p class="panel-note">This assignment is not assigned to your moderator account. Member progress is shown below.</p></div></section>')+
- report+'</div></div>';
+ '<div class="puzzle-assignment-counter" id="puzzle-solved-counter">'+count+' of '+items.length+' solved</div></div>'+
+ (!d.canSolve?'<p class="panel-note puzzle-review-note">Previewing positions as a moderator. Your account is not assigned to solve these puzzles.</p>':"")+
+ '<div class="puzzle-board-grid">'+boards+'</div>'+report;
 }
 function page(state){
  if(state.activeGeneralAssignment)return generalDetail(state);
@@ -404,17 +413,21 @@ function page(state){
  if(state.data?.role==="moderator" && state.assignmentView==="gradebook")return gradebookView(state);
  return listing(state);
 }
-function updatePuzzleFeedback(state,item){
- const feedback=document.getElementById("puzzle-feedback");
- if(feedback)feedback.textContent=state.puzzleFeedback||"";
- const mistakes=document.getElementById("puzzle-mistake-count");
+function updatePuzzleFeedback(state,item,index){
+ const el=document.getElementById("puzzle-feedback-"+index);
+ if(el)el.textContent=state.puzzleFeedback||"";
+ const mistakes=document.getElementById("puzzle-mistake-count-"+index);
  if(mistakes)mistakes.textContent="Mistakes: "+(item.mistakes||0);
- const chip=document.getElementById("puzzle-state-chip");
- if(chip){chip.textContent=item.solved?"Solved":"In progress";chip.className="pill "+(item.solved?"active":"");}
- const indicator=document.querySelector('[data-puzzle-progress="'+state.puzzleIndex+'"]');
- if(indicator)indicator.textContent=item.rating+" · "+(item.solved?"Solved":item.mistakes?"In progress":"Not started");
+ const chip=document.getElementById("puzzle-state-chip-"+index);
+ if(chip){
+   chip.textContent=item.solved?"Solved":item.mistakes?"In progress":"Not started";
+   chip.className="puzzle-card-state "+(item.solved?"solved":"");
+ }
  const counter=document.getElementById("puzzle-solved-counter");
- if(counter && state.assignmentData)counter.textContent=state.assignmentData.items.filter(i=>i.solved).length+" of "+state.assignmentData.items.length+" solved";
+ if(counter&&state.assignmentData){
+   const list=state.assignmentData.items;
+   counter.textContent=list.filter(i=>i.solved).length+" of "+list.length+" solved";
+ }
 }
 
 function bind({state,render,api,post,action}){
