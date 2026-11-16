@@ -1211,3 +1211,15 @@ button.back:hover{text-decoration:underline}
  .puzzle-grid-card .puzzle-tool{gap:4px;padding:5px 3px;font-size:10px}
  .puzzle-grid-card .puzzle-tool svg{width:13px;height:13px;flex-basis:13px}
 }
+
+
+.puzzle-library-status{
+  color:#355b41;
+  background:#edf5ee;
+  border:1px solid #cddfcf;
+  border-radius:5px;
+  padding:9px 12px;
+  font-size:12px;
+  line-height:1.5;
+  margin-top:-7px;
+}
