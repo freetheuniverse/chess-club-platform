@@ -5,7 +5,7 @@ const reply = (data, status=200) => new Response(JSON.stringify(data), {
 });
 const fail = (message,status=400) => reply({error:message},status);
 const randomId = () => crypto.randomUUID();
-const ALLOWED_THEMES = new Set(["mix","fork","pin","skewer","discoveredAttack","doubleCheck","mateIn1","mateIn2","mateIn3","endgame","opening","middlegame","hangingPiece","defensiveMove","promotion","sacrifice","backRankMate","oneMove","short"]);
+const ALLOWED_THEMES = new Set(["mix","fork","pin","skewer","discoveredAttack","doubleCheck","mateIn1","mateIn2","mateIn3","endgame","opening","middlegame","hangingPiece","defensiveMove","promotion","sacrifice","backRankMate","oneMove","short","attraction","arabianMate","anastasiaMate","bodenMate","doubleBishopMate","dovetailMate","hookMate","smotheredMate","mateIn4","mateIn5","zugzwang","pawnEndgame","rookEndgame","queenEndgame","queenRookEndgame","bishopEndgame","knightEndgame","advancedPawn","attackingF2F7","xRayAttack","deflection","trappedPiece","interference","capturingDefender","clearance","exposedKing","kingsideAttack","queensideAttack","quietMove","enPassant","underPromotion","castling","crushing","advantage","equality","master","veryLong","long"]);
 const ALLOWED_DIFFICULTIES = new Set(["easiest","easier","normal","harder","hardest"]);
 const isDate = value => value==null || value==="" || (typeof value==="string" && /^\d{4}-\d\d-\d\d$/.test(value) && !Number.isNaN(Date.parse(value+"T12:00:00Z")));
 const encodeMove = move => move.from + move.to + (move.promotion||"");
@@ -66,6 +66,79 @@ function sanitizedPuzzle(item){
   }
   return {lichess_id:p.id, rating:Number(p.rating)||0, themes:JSON.stringify(p.themes||[]),
     start_fen:startFen,solution_json:JSON.stringify(p.solution)};
+}
+// Only moderators receive a preview that contains the solution. The client
+// never exposes this preview to student accounts.
+async function puzzlePreview(payload){
+  const theme=String(payload?.theme||"mix"), difficulty=String(payload?.difficulty||"normal");
+  const count=Number(payload?.count||5);
+  if(!ALLOWED_THEMES.has(theme)||!ALLOWED_DIFFICULTIES.has(difficulty))
+    return fail("Select a supported Lichess topic and difficulty.");
+  if(!Number.isInteger(count)||count<1||count>10)return fail("Choose 1–10 puzzles.");
+  const ids=String(payload?.puzzle_ids||"").trim().split(/[\s,;]+/).filter(Boolean);
+  const exclude=Array.isArray(payload?.exclude_ids)?payload.exclude_ids:[];
+  if(ids.length>10||ids.some(id=>!/^[a-zA-Z0-9]{5}$/.test(id)))
+    return fail("Use up to ten valid five-character Lichess puzzle IDs.");
+  if(exclude.length>10||exclude.some(id=>typeof id!=="string"||!/^[a-zA-Z0-9]{5}$/.test(id)))
+    return fail("Invalid excluded puzzle IDs.");
+  let raw;
+  try{
+    if(ids.length){
+      raw=[];
+      for(const id of [...new Set(ids)])
+        raw.push(await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(id)));
+    }else{
+      const url=new URL("https://lichess.org/api/puzzle/batch/"+encodeURIComponent(theme));
+      url.searchParams.set("nb",String(Math.min(10,count+exclude.length)));
+      url.searchParams.set("difficulty",difficulty);
+      const response=await getLichess(url.toString());
+      raw=Array.isArray(response?.puzzles)?response.puzzles:[];
+    }
+  }catch(e){return fail(e.message,e.status||502);}
+  const seen=new Set(exclude);
+  const prepared=[];
+  try{
+    for(const p of raw){
+      const clean=sanitizedPuzzle(p);
+      if(seen.has(clean.lichess_id))continue;
+      seen.add(clean.lichess_id);
+      const gameId=p?.game?.id;
+      prepared.push({
+        id:clean.lichess_id, lichess_id:clean.lichess_id, rating:clean.rating,
+        themes:JSON.parse(clean.themes),start_fen:clean.start_fen,
+        solution:JSON.parse(clean.solution_json),
+        game_id:typeof gameId==="string"&&/^[a-zA-Z0-9]{8}$/.test(gameId)?gameId:null
+      });
+      if(prepared.length>=count)break;
+    }
+  }catch(e){return fail("Could not prepare puzzle preview: "+e.message,502);}
+  if(!prepared.length)return fail("No different puzzles were returned. Try a different topic or difficulty.",404);
+  return reply({puzzles:prepared});
+}
+async function puzzleGameSource(db,club,role,user,assignmentId,itemId){
+  const target=await db.prepare(
+    "SELECT i.lichess_id FROM puzzle_assignment_items i "+
+    "JOIN puzzle_assignments a ON a.id=i.assignment_id "+
+    "WHERE i.id=? AND i.assignment_id=? AND a.club_id=?"
+  ).bind(itemId,assignmentId,club).first();
+  if(!target)return fail("Puzzle not found.",404);
+  if(role!=="moderator"){
+    const assigned=await db.prepare(
+      "SELECT 1 FROM puzzle_assignment_members WHERE assignment_id=? AND user_id=?"
+    ).bind(assignmentId,user.id).first();
+    if(!assigned)return fail("Puzzle not assigned to you.",403);
+    const done=await db.prepare(
+      "SELECT solved_at FROM puzzle_member_progress WHERE item_id=? AND assignment_id=? AND user_id=?"
+    ).bind(itemId,assignmentId,user.id).first();
+    if(!done?.solved_at)return fail("Complete the puzzle before viewing its full game.",403);
+  }
+  let raw;
+  try{raw=await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(target.lichess_id));}
+  catch(e){return fail(e.message,e.status||502);}
+  const gameId=raw?.game?.id;
+  if(typeof gameId!=="string"||!/^[a-zA-Z0-9]{8}$/.test(gameId))
+    return fail("The original game is not available for this puzzle.",404);
+  return reply({game_url:"https://lichess.org/"+gameId});
 }
 async function createAssignment(db, club, user, payload){
   const title=String(payload.title||"").trim();
@@ -179,6 +252,10 @@ async function verifyMove(db,club,user,aid,itemId,body){
 export async function handlePuzzleRequest({db,club,user,role,path,method,req}){
   try {
     const key=path[4],id=path[5];
+    if(key==="preview" && path.length===5 && method==="POST"){
+      if(role!=="moderator")return fail("Only moderators can preview solutions.",403);
+      return puzzlePreview(await req.json());
+    }
     if(key!=="assignments")return fail("Puzzle endpoint not found.",404);
     if(path.length===5 && method==="GET")return listAssignments(db,club,user,role);
     if(path.length===5 && method==="POST"){
@@ -192,6 +269,8 @@ export async function handlePuzzleRequest({db,club,user,role,path,method,req}){
     if(path.length===8 && path[6]==="items" && method==="POST"){
       return verifyMove(db,club,user,id,path[7],await req.json());
     }
+    if(path.length===8 && path[6]==="source" && method==="GET")
+      return puzzleGameSource(db,club,role,user,id,path[7]);
     return fail("Puzzle endpoint not found.",404);
   }catch(e){
     console.error("Puzzle API error",e);
