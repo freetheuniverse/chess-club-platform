@@ -243,6 +243,14 @@ async function puzzleGameSource(db,club,role,user,assignmentId,itemId){
     ).bind(itemId,assignmentId,user.id).first();
     if(!done?.solved_at)return fail("Complete the puzzle before viewing its full game.",403);
   }
+  // Use the original game's ID already bundled with the public puzzle data.
+  // This works while Lichess's live puzzle API is rate limited.
+  if(await bankReady(db)){
+    const cached=await db.prepare("SELECT game_id FROM puzzle_bank WHERE lichess_id=?")
+      .bind(target.lichess_id).first();
+    if(cached?.game_id && /^[a-zA-Z0-9]{8}$/.test(cached.game_id))
+      return reply({game_url:"https://lichess.org/"+cached.game_id});
+  }
   let raw;
   try{raw=await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(target.lichess_id),db);}
   catch(e){return fail(e.message,e.status||502);}
