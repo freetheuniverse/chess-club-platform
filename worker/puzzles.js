@@ -232,30 +232,30 @@ async function createAssignment(db, club, user, payload){
   const requested=Array.isArray(payload.user_ids)&&payload.user_ids.length?[...new Set(payload.user_ids)]:roster;
   if(!requested.length || requested.length>200)return fail("Select between 1 and 200 club members.");
   if(requested.some(id=>typeof id!=="string" || !roster.includes(id)))return fail("One or more selected members are not in this club.",403);
-  const manual=String(payload.puzzle_ids||"").trim().split(/[\s,;]+/).filter(Boolean);
-  if(manual.length>10 || manual.some(id=>!/^[a-zA-Z0-9]{5}$/.test(id)))return fail("Use up to ten valid five-character Lichess puzzle IDs.");
-  let raw;
-  try{
-    if(manual.length){
-      raw=[];
-      for(const id of [...new Set(manual)]) raw.push(await getLichess("https://lichess.org/api/puzzle/"+encodeURIComponent(id)));
-    } else {
-      const url=new URL("https://lichess.org/api/puzzle/batch/"+theme);
-      url.searchParams.set("nb",String(number));
-      url.searchParams.set("difficulty",difficulty);
-      const response=await getLichess(url.toString());
-      raw=Array.isArray(response?.puzzles)?response.puzzles:[];
-    }
-  }catch(e){return fail(e.message,e.status||502);}
-  let puzzles;
-  try{
-    const seen=new Set();
-    puzzles=raw.map(sanitizedPuzzle).filter(p=>{
-      if(seen.has(p.lichess_id))return false;
-      seen.add(p.lichess_id);return true;
-    });
-  }catch(e){return fail("Could not prepare puzzle positions: "+e.message,502);}
-  if(!puzzles.length)return fail("Lichess did not return usable puzzles. Try another theme.",502);
+  // Publishing uses previously validated, owner-scoped preview tokens.
+  // Never contact Lichess again for selected puzzles and never trust the
+  // solution sent by the browser.
+  const tokens=Array.isArray(payload.preview_ids)?payload.preview_ids:[];
+  if(!tokens.length||tokens.length!==number||tokens.length>10||
+     tokens.some(id=>typeof id!=="string"||!/^[a-f0-9-]{36}$/.test(id))||
+     new Set(tokens).size!==tokens.length)
+    return fail("Generate and review your puzzles before assigning them.");
+  if(!(await bankReady(db)))
+    return fail("Puzzle previews require database migration 0006. Run npm run db:migrate:cloud.",503);
+  const placeholders=tokens.map(()=>"?").join(",");
+  const records=(await db.prepare(
+    "SELECT d.id AS preview_id,b.* FROM puzzle_preview_drafts d "+
+    "JOIN puzzle_bank b ON b.lichess_id=d.lichess_id "+
+    "WHERE d.club_id=? AND d.user_id=? "+
+    "AND d.created_at >= datetime('now','-24 hours') "+
+    "AND d.id IN ("+placeholders+")"
+  ).bind(club,user.id,...tokens).all()).results;
+  const byToken=new Map(records.map(p=>[p.preview_id,p]));
+  if(byToken.size!==tokens.length)return fail("Some puzzle previews have expired. Generate fresh puzzles.",409);
+  const puzzles=tokens.map(t=>byToken.get(t));
+  if(new Set(puzzles.map(p=>p.lichess_id)).size!==puzzles.length)
+    return fail("Each selected puzzle must be different.");
+
   const assignmentId=randomId();
   const statements=[db.prepare("INSERT INTO puzzle_assignments(id,club_id,title,theme,difficulty,due_date,created_by) VALUES(?,?,?,?,?,?,?)").bind(assignmentId,club,title,theme,difficulty,dueDate,user.id)];
   for(const memberId of requested)statements.push(db.prepare("INSERT INTO puzzle_assignment_members(assignment_id,user_id) VALUES(?,?)").bind(assignmentId,memberId));
