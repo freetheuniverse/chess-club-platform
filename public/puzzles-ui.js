@@ -1,5 +1,6 @@
 (() => {
 const liveBoards=new Map();
+let previewBusy=false;
 function destroyBoard(){for(const board of liveBoards.values())board.destroy();liveBoards.clear();}
 const THEME_GROUPS=[["Checkmates",[["mateIn1","Mate in one move"],["mateIn2","Mate in two moves"],["mateIn3","Mate in three moves"],["mateIn4","Mate in four moves"],["mateIn5","Mate in five moves"],["backRankMate","Back-rank mate"],["smotheredMate","Smothered mate"],["anastasiaMate","Anastasia’s mate"],["arabianMate","Arabian mate"],["bodenMate","Boden’s mate"],["doubleBishopMate","Double bishop mate"],["dovetailMate","Dovetail mate"],["hookMate","Hook mate"]]],["Openings",[["opening","Opening"],["kingsideAttack","Kingside attack"],["queensideAttack","Queenside attack"],["Sicilian_Defense","Sicilian Defense"],["French_Defense","French Defense"],["Ruy_Lopez","Ruy Lopez"],["Italian_Game","Italian Game"],["Caro-Kann_Defense","Caro-Kann Defense"],["Queens_Gambit_Declined","Queen's Gambit Declined"],["English_Opening","English Opening"],["Scotch_Game","Scotch Game"]]],["Endgames",[["endgame","Endgame"],["promotion","Promotion"],["zugzwang","Zugzwang"],["pawnEndgame","Pawn endgame"],["rookEndgame","Rook endgame"],["queenEndgame","Queen endgame"],["queenRookEndgame","Queen and rook endgame"],["advancedPawn","Advanced pawn"],["bishopEndgame","Bishop endgame"],["knightEndgame","Knight endgame"],["attackingF2F7","Attacking f2/f7"]]],["Tactics",[["pin","Pin"],["fork","Fork (double attack)"],["skewer","Skewer"],["discoveredAttack","Discovered attack"],["doubleCheck","Double check"],["attraction","Attraction"],["xRayAttack","X-ray attack"],["defensiveMove","Defensive move"],["deflection","Deflection"],["hangingPiece","Hanging piece"],["sacrifice","Sacrifice"],["interference","Interference"],["trappedPiece","Trapped piece"],["capturingDefender","Capturing defender"],["clearance","Clearance"],["exposedKing","Exposed king"],["quietMove","Quiet move"]]],["Special moves",[["enPassant","En passant"],["underPromotion","Underpromotion"],["castling","Castling"]]],["Puzzle length",[["oneMove","One move"],["short","Short"],["long","Long"],["veryLong","Very long"]]],["Goals",[["crushing","Crushing"],["advantage","Advantage"],["equality","Equality"]]],["Other",[["master","Master games"],["mix","Mixed tactics"],["middlegame","Middlegames"]]]];
 
@@ -294,6 +295,7 @@ function assignmentForm(state){
    btn("Generate puzzles","generate-preview","btn ghost small")+
    ((d.items||[]).length<10?btn("+ Add puzzle","preview-add","btn ghost small"):"")+
  '</div></div>'+
+ '<p class="puzzle-preview-loading" id="puzzle-preview-loading" role="status" hidden>Finding and validating puzzles…</p>'+
  '<div class="puzzle-preview-grid" id="puzzle-preview-grid">'+
  (boards||'<div class="puzzle-preview-placeholder">No puzzles selected. Choose a topic and select <strong>Generate puzzles</strong> to preview them.</div>')+
  '</div>'+
@@ -492,9 +494,10 @@ function bind({state,render,api,post,action}){
    if(cmd==="members-all"||cmd==="members-none")document.querySelectorAll(".puzzle-member").forEach(x=>x.checked=cmd==="members-all");
    if(cmd==="flip")liveBoards.get("student:"+state.puzzleIndex)?.flip();
    if(cmd==="generate-preview"||cmd==="preview-change"||cmd==="preview-add"){
+     if(previewBusy)return;
      const draft=capturePuzzleDraft(state);
      const index=Number(val);
-     if((cmd==="preview-change"||cmd==="preview-add") && !draft.items?.length)return;
+     if(cmd==="preview-change" && !draft.items?.length)return;
      const existing=(draft.items||[]).map(x=>x.lichess_id);
      if(cmd==="preview-add"&&existing.length>=10)return;
      const request={
@@ -507,9 +510,16 @@ function bind({state,render,api,post,action}){
      if(error){error.hidden=true;error.textContent="";}
      const create=document.getElementById("puzzle-submit");
      if(create)create.disabled=true;
+     const loading=document.getElementById("puzzle-preview-loading");
+     if(loading)loading.hidden=false;
+     const previewButtons=[...document.querySelectorAll('[data-puzzle-action="generate-preview"],[data-puzzle-action^="preview-change:"],[data-puzzle-action="preview-add"]')];
+     previewButtons.forEach(b=>b.disabled=true);
+     previewBusy=true;
+     const requestClub=state.club;
      void (async()=>{
        try{
-         const response=await post("clubs/"+state.club+"/puzzles/preview",request);
+         const response=await post("clubs/"+requestClub+"/puzzles/preview",request);
+         if(state.club!==requestClub)return;
          const incoming=(response.puzzles||[]).map(item=>({...item,played:[],solved:false,mistakes:0}));
          if(!incoming.length)throw Error("Lichess did not return any suitable puzzles.");
          if(cmd==="generate-preview")draft.items=incoming;
@@ -529,6 +539,10 @@ function bind({state,render,api,post,action}){
          const msg=document.getElementById("puzzle-form-error");
          if(msg){msg.textContent=draft.error;msg.hidden=false;}
          if(create)create.disabled=!(draft.items||[]).length;
+       }finally{
+         previewBusy=false;
+         previewButtons.forEach(b=>b.disabled=false);
+         if(loading)loading.hidden=true;
        }
      })();
    }
