@@ -563,11 +563,18 @@ function bind({state,render,api,post,action}){
      if(cmd==="student-analyze"&&(item.solved||state.data?.role==="moderator"))
        openExternal(analysisUrl(item.start_fen));
      if(cmd==="student-game"&&(item.solved||state.data?.role==="moderator")){
+       // Open a tab synchronously from the click so popup blockers do not block
+       // the asynchronous, permission-checked game lookup.
+       const tab=window.open("about:blank","_blank");
+       if(tab){tab.opener=null;tab.document.title="Opening Lichess game…";}
        void (async()=>{
          try{
            const result=await api("clubs/"+state.club+"/puzzles/assignments/"+state.activeAssignment+"/source/"+item.id);
-           openExternal(result.game_url);
+           if(!/^https:\/\/lichess\.org\/[a-zA-Z0-9]{8}$/.test(result.game_url))throw Error("Invalid Lichess game link.");
+           if(tab)tab.location.replace(result.game_url);
+           else openExternal(result.game_url);
          }catch(e){
+           if(tab)tab.close();
            const feedback=document.getElementById("puzzle-feedback-"+index);
            if(feedback)feedback.textContent=e.message;
          }
