@@ -372,6 +372,20 @@ async function verifyMove(db,club,user,aid,itemId,body){
 export async function handlePuzzleRequest({db,club,user,role,path,method,req}){
   try {
     const key=path[4],id=path[5];
+    if(key==="bank" && path.length===5 && method==="GET"){
+      if(role!=="moderator")return fail("Only moderators can view the puzzle bank.",403);
+      if(!(await bankReady(db)))return fail("Apply database migration 0006 for the puzzle bank.",503);
+      const params=new URL(req.url||"https://example.invalid/").searchParams;
+      const theme=params.get("theme")||"mix",difficulty=params.get("difficulty")||"normal";
+      if(!ALLOWED_THEMES.has(theme)||!ALLOWED_DIFFICULTIES.has(difficulty))
+        return fail("Invalid topic or difficulty.");
+      const [total,matching]=await Promise.all([
+        db.prepare("SELECT COUNT(*) AS n FROM puzzle_bank").first(),
+        db.prepare("SELECT COUNT(*) AS n FROM puzzle_bank WHERE source_theme=? AND source_difficulty=?")
+          .bind(theme,difficulty).first()
+      ]);
+      return reply({total:Number(total?.n||0),matching:Number(matching?.n||0),theme,difficulty});
+    }
     if(key==="preview" && path.length===5 && method==="POST"){
       if(role!=="moderator")return fail("Only moderators can preview solutions.",403);
       return puzzlePreview(db,club,user,await req.json());
