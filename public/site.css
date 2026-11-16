@@ -1130,7 +1130,7 @@ button.back:hover{text-decoration:underline}
 .puzzle-card-state.solved{color:#237144}
 .puzzle-member-progress{margin-top:22px}
 .puzzle-review-note{border:1px solid #d9e4da;border-radius:5px;background:#f7faf7;margin:12px 0;padding:10px 14px}
-@media(max-width:1250px){
+@media(max-width:1050px){
  .puzzle-preview-grid,.puzzle-board-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:910px){
