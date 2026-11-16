@@ -179,11 +179,22 @@ npm run db:migrate:cloud
 The new `0005_general_assignments.sql` creates three additive tables and leaves existing club, tournament, attendance, message, and Lichess puzzle records intact. Until applied, the Assignments page still shows existing puzzles and displays a notice explaining that study/written activities need setup.
 ### Puzzle assignment studio and student puzzle grid
 
-Creating a **Chess puzzle practice** assignment opens a wide, scrollable editor with grouped Lichess puzzle topics, difficulty, a **Preview mode** selector (practice or review moves), number of puzzles (1–10), title, deadline, and member selection. The moderator selects **Generate puzzles** before publishing. The preview displays responsive Chessground boards, three across on larger screens, with an individual toolbar for **Analyze Position**, **View Full Game**, **Change this puzzle**, **Remove this puzzle**, **Reset board**, and **Play next move**. Lichess analysis/game buttons open the corresponding Lichess pages. The final assignment uses only the previewed puzzle IDs; generating or changing the preview never writes assignment/progress records.
+Creating a **Chess puzzle practice** assignment opens a wide, scrollable editor with grouped Lichess puzzle topics, difficulty, a **Preview mode** selector (practice or review moves), number of puzzles (1–10), title, deadline, and member selection. The moderator selects **Generate puzzles** before publishing. The preview displays responsive Chessground boards, three across on larger screens, with an individual toolbar for **Analyze Position**, **View Full Game**, **Change this puzzle**, **Remove this puzzle**, **Reset board**, and **Play next move**. Lichess analysis/game buttons open the corresponding Lichess pages. Each preview is cached in D1 under an owner- and club-scoped, time-limited preview ID. Publishing uses those verified preview IDs and does **not** make another Lichess request. Cached public puzzles can be reused by other moderators without exposing student progress; generating or changing previews does not create student assignment/progress records.
 
-All enrolled members open the assigned puzzles in a responsive grid, not a left-hand puzzle navigation panel. Each board keeps separate move handling, reset/flip controls, status, and recorded progress. Student **Analyze Position** and **View Full Game** actions are unavailable until that specific puzzle has been solved (club moderators may inspect them earlier). A student's Reset board returns to their saved progress; it does not erase recorded attempts. The play-next-move solution-reveal action is restricted to the moderator's unpublished preview, not assigned student puzzles.
+All enrolled members open the assigned puzzles in a responsive grid, not a left-hand puzzle navigation panel. Each board keeps separate move handling, reset/flip controls, status, and recorded progress. Student **Analyze Position** and **View Full Game** actions are unavailable until that specific puzzle has been solved (club moderators may inspect them earlier). An unsolved student's Reset board returns to their latest saved progress. After a puzzle is completed, Reset returns to the initial position and permits a local, non-graded replay of the solution, without erasing completion or changing mistakes. The play-next-move solution-reveal action is restricted to the moderator's unpublished preview, not assigned student puzzles.
 
-The puzzle preview and source-game API routes are authorized and reuse the existing puzzle database; **no new D1 migration** is required for these grid changes. Lichess may rate-limit or fail individual puzzle requests; the editor shows those errors without publishing incomplete selections.
+### Enable the puzzle cache (one-time migration 0006)
+
+The new D1 tables are additive. From your local project folder:
+
+```bat
+git pull origin dev
+npm run db:migrate:cloud
+```
+
+Migration `0006_puzzle_preview_cache.sql` creates a shared cache of public Lichess positions, an owner-scoped preview selection table, and a provider cooldown record. It seeds previously assigned puzzles so some topic selections can work without a new upstream request. Existing clubs, assignments and students' progress are unchanged. Cloudflare's website deployment **does not** apply D1 migrations automatically.
+
+Lichess officially recommends **one request at a time** and waiting at least one minute after a 429 response. The Worker now observes a shared 60-second (or longer when Lichess requests it) cooldown, reuses cached puzzles when possible, and never re-fetches selected puzzles during publishing. New topics not yet cached can still be temporarily unavailable during a provider cooldown; the app communicates this limitation rather than inventing positions. The updated per-board toolbars use visible action labels as well as icons.
 
 
 ## Account-free tournament guests and tournament management
