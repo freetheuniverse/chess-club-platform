@@ -213,17 +213,18 @@ async function puzzlePreview(db,club,user,payload){
    });
  }
  const selected=prepared.slice(0,count);
+ const notice=archiveUsed?
+   "Puzzles were loaded from the public Lichess dataset because its live API was unavailable. Difficulty is approximated using puzzle ratings.":
+   rateLimited?"Using cached positions while the live Lichess API is limiting requests.":null;
+ const warning=selected.length<count?
+   (notice?notice+" ":"")+"Only "+selected.length+" of "+count+" requested puzzles were available. You can assign these or try generating more later.":
+   notice;
  const drafts=selected.map(p=>({...p,preview_id:randomId()}));
  await db.batch(drafts.map(p=>
    db.prepare("INSERT INTO puzzle_preview_drafts(id,lichess_id,club_id,user_id) VALUES(?,?,?,?)")
     .bind(p.preview_id,p.lichess_id,club,user.id)
  ));
- return reply({
-   puzzles:drafts,cached:hadCache,
-   warning:archiveUsed?
-     "Puzzle positions were retrieved from the public Lichess dataset because the live puzzle API was unavailable. Difficulty uses approximate rating bands.":
-     rateLimited?"Showing available cached puzzles. Lichess is temporarily limiting new requests.":null
- });
+ return reply({puzzles:drafts,cached:hadCache,warning});
 }
 
 async function puzzleGameSource(db,club,role,user,assignmentId,itemId){
